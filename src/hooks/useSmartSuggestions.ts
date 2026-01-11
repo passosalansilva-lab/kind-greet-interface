@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { filterCategoriesByDayPeriod, DayPeriod, CategoryDayPeriod } from '@/lib/dayPeriods';
 
@@ -39,11 +39,64 @@ export function useSmartSuggestions(
   const [isLoading, setIsLoading] = useState(false);
   const lastCartKey = useRef<string>('');
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const hasFetchedInitial = useRef(false);
+
+  // Memoize category map to avoid recreation on each render
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
 
   const getCategoryName = useCallback((categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || '';
-  }, [categories]);
+    return categoryMap.get(categoryId) || '';
+  }, [categoryMap]);
+
+  // Memoize visible category IDs
+  const visibleCategoryIds = useMemo(() => {
+    return filterCategoriesByDayPeriod(
+      categories.map(c => c.id),
+      dayPeriods,
+      categoryDayPeriods
+    );
+  }, [categories, dayPeriods, categoryDayPeriods]);
+
+  // Create stable keys for comparison to prevent infinite loops
+  const cartKey = useMemo(() => 
+    cartItems.map(i => i.productId).sort().join(','),
+    [cartItems]
+  );
+  
+  const productsKey = useMemo(() => 
+    allProducts.length > 0 ? allProducts.map(p => p.id).slice(0, 5).join(',') : '',
+    [allProducts]
+  );
+
+  const fallbackToSimpleSuggestions = useCallback((cartProductIds: Set<string>) => {
+    const visibleCategorySet = new Set(visibleCategoryIds);
+
+    // Simple fallback: suggest beverages not in cart AND from visible categories
+    const beverageKeywords = ['bebida', 'refrigerante', 'suco', 'água', 'drink'];
+    const beverages = allProducts
+      .filter(p => {
+        if (cartProductIds.has(p.id)) return false;
+        if (!visibleCategorySet.has(p.category_id)) return false;
+        const categoryName = getCategoryName(p.category_id).toLowerCase();
+        const productName = p.name.toLowerCase();
+        return beverageKeywords.some(kw => 
+          categoryName.includes(kw) || productName.includes(kw)
+        );
+      })
+      .slice(0, 5)
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        image_url: p.image_url,
+      }));
+
+    setSuggestions(beverages);
+  }, [allProducts, visibleCategoryIds, getCategoryName]);
 
   const fetchSuggestions = useCallback(async () => {
     if (!enabled || cartItems.length === 0 || allProducts.length === 0) {
@@ -53,13 +106,6 @@ export function useSmartSuggestions(
 
     // Get cart product IDs to exclude from suggestions
     const cartProductIds = new Set(cartItems.map(item => item.productId));
-
-    // Filter categories based on current day period
-    const visibleCategoryIds = filterCategoriesByDayPeriod(
-      categories.map(c => c.id),
-      dayPeriods,
-      categoryDayPeriods
-    );
     const visibleCategorySet = new Set(visibleCategoryIds);
 
     // Filter available products (not in cart AND from visible categories)
@@ -128,44 +174,10 @@ export function useSmartSuggestions(
     } finally {
       setIsLoading(false);
     }
-  }, [cartItems, allProducts, categories, dayPeriods, categoryDayPeriods, enabled, getCategoryName]);
+  }, [cartItems, allProducts, visibleCategoryIds, enabled, getCategoryName, fallbackToSimpleSuggestions]);
 
-  const fallbackToSimpleSuggestions = useCallback((cartProductIds: Set<string>) => {
-    // Filter categories based on current day period
-    const visibleCategoryIds = filterCategoriesByDayPeriod(
-      categories.map(c => c.id),
-      dayPeriods,
-      categoryDayPeriods
-    );
-    const visibleCategorySet = new Set(visibleCategoryIds);
-
-    // Simple fallback: suggest beverages not in cart AND from visible categories
-    const beverageKeywords = ['bebida', 'refrigerante', 'suco', 'água', 'drink'];
-    const beverages = allProducts
-      .filter(p => {
-        if (cartProductIds.has(p.id)) return false;
-        if (!visibleCategorySet.has(p.category_id)) return false;
-        const categoryName = getCategoryName(p.category_id).toLowerCase();
-        const productName = p.name.toLowerCase();
-        return beverageKeywords.some(kw => 
-          categoryName.includes(kw) || productName.includes(kw)
-        );
-      })
-      .slice(0, 5)
-      .map(p => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        image_url: p.image_url,
-      }));
-
-    setSuggestions(beverages);
-  }, [allProducts, categories, dayPeriods, categoryDayPeriods, getCategoryName]);
-
+  // Effect for cart changes - debounced
   useEffect(() => {
-    // Create a key based on cart contents to detect changes
-    const cartKey = cartItems.map(i => i.productId).sort().join(',');
-    
     // Only fetch if cart actually changed
     if (cartKey === lastCartKey.current) {
       return;
@@ -186,14 +198,16 @@ export function useSmartSuggestions(
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [cartItems, fetchSuggestions]);
+  }, [cartKey, fetchSuggestions]);
 
-  // Initial fetch when products/categories load
+  // Initial fetch when products/categories load - only once
   useEffect(() => {
-    if (allProducts.length > 0 && categories.length > 0 && cartItems.length > 0) {
+    if (hasFetchedInitial.current) return;
+    if (productsKey && categories.length > 0 && cartItems.length > 0) {
+      hasFetchedInitial.current = true;
       fetchSuggestions();
     }
-  }, [allProducts.length, categories.length]);
+  }, [productsKey, categories.length, cartItems.length, fetchSuggestions]);
 
   return {
     suggestions,
