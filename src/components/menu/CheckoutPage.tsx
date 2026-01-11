@@ -36,7 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/hooks/useCart';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { CustomerAuthModal, CustomerData } from './CustomerAuthModal';
+import { CustomerAuthModal, CustomerData, ReferralDiscountData } from './CustomerAuthModal';
 import { AddressSelector } from './AddressSelector';
 import { PixPaymentScreen } from './PixPaymentScreen';
 import { PicPayPaymentScreen } from './PicPayPaymentScreen';
@@ -252,7 +252,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
   }, [loggedCustomer, setValue]);
 
   // When customer logs in via lookup, prefill form and persist session
-  const handleCustomerLogin = (customer: CustomerData) => {
+  const handleCustomerLogin = (customer: CustomerData, referralDiscountData?: ReferralDiscountData) => {
     setLoggedCustomer(customer);
     try {
       const key = getCustomerStorageKey(companyId);
@@ -271,6 +271,16 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
     setValue('customerPhone', customer.phone);
     if (customer.email) {
       setValue('customerEmail', customer.email);
+    }
+
+    // If referral discount was applied during registration, set it
+    if (referralDiscountData) {
+      setReferralDiscount(referralDiscountData);
+      setPendingReferralCode(null);
+      toast({
+        title: 'Desconto de indicação aplicado!',
+        description: `${referralDiscountData.referrerName} te indicou! Você ganha ${referralDiscountData.discountPercent}% de desconto.`,
+      });
     }
   };
 
@@ -1666,30 +1676,40 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
             <div className="space-y-4">
               {/* Pending referral code message */}
               {pendingReferralCode && (
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                <div className="bg-success/10 border border-success/30 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <Tag className="h-5 w-5 text-primary mt-0.5" />
+                    <Tag className="h-5 w-5 text-success mt-0.5" />
                     <div className="flex-1">
-                      <p className="font-medium text-primary">Você tem um código de indicação!</p>
+                      <p className="font-medium text-success">🎁 Você ganhou um desconto de indicação!</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Faça login ou cadastre-se para ativar seu desconto de indicação.
+                        Cadastre-se ou faça login para ativar seu desconto especial.
                       </p>
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={() => setShowAuthModal(true)}
+                      >
+                        Cadastrar e Ganhar Desconto
+                      </Button>
                     </div>
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Já fez pedido antes?</p>
-                  <p className="text-sm text-muted-foreground">
-                    Entre para usar seus endereços salvos
-                  </p>
+              {!pendingReferralCode && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Já fez pedido antes?</p>
+                    <p className="text-sm text-muted-foreground">
+                      Entre para usar seus endereços salvos
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => setShowAuthModal(true)}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Entrar
+                  </Button>
                 </div>
-                <Button variant="outline" onClick={() => setShowAuthModal(true)}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Entrar
-                </Button>
-              </div>
+              )}
             </div>
           )}
         </section>
@@ -2272,6 +2292,8 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleCustomerLogin}
+        referralCode={referralCode}
+        companyId={companyId}
       />
     </div>
   );
