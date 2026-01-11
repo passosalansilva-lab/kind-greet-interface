@@ -16,7 +16,9 @@ import {
   RefreshCw,
   CreditCard,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Gift,
+  Save
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -53,6 +55,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
@@ -77,6 +81,13 @@ interface Company {
   subscription_status: string | null;
   subscription_end_date: string | null;
   monthly_revenue: number | null;
+  revenue_limit_bonus: number | null;
+}
+
+interface SubscriptionPlan {
+  key: string;
+  name: string;
+  revenue_limit: number | null;
 }
 
 interface Stats {
@@ -110,8 +121,14 @@ export default function AdminCompanies() {
     company: Company | null;
   }>({ open: false, company: null });
 
+  // Bonus edit state
+  const [bonusEditing, setBonusEditing] = useState<{ companyId: string; value: number } | null>(null);
+  const [savingBonus, setSavingBonus] = useState(false);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+
   useEffect(() => {
     loadCompanies();
+    loadPlans();
   }, []);
 
   const loadCompanies = async () => {
@@ -124,7 +141,11 @@ export default function AdminCompanies() {
 
       if (error) throw error;
 
-      const typedData = (data || []) as Company[];
+      // Map and provide default for revenue_limit_bonus if column doesn't exist yet
+      const typedData = (data || []).map(d => ({
+        ...d,
+        revenue_limit_bonus: (d as any).revenue_limit_bonus ?? 0
+      })) as Company[];
       setCompanies(typedData);
 
       // Calculate stats
@@ -144,6 +165,77 @@ export default function AdminCompanies() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadPlans = async () => {
+    try {
+      const { data } = await supabase
+        .from('subscription_plans')
+        .select('key, name, revenue_limit')
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+      
+      setPlans(data || []);
+    } catch (error) {
+      console.error('Error loading plans:', error);
+    }
+  };
+
+  const handleSaveBonus = async () => {
+    if (!bonusEditing) return;
+    
+    setSavingBonus(true);
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ revenue_limit_bonus: bonusEditing.value } as any)
+        .eq('id', bonusEditing.companyId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Bônus atualizado',
+        description: 'O bônus de limite foi salvo com sucesso',
+      });
+
+      // Update local state
+      setCompanies(prev => prev.map(c => 
+        c.id === bonusEditing.companyId 
+          ? { ...c, revenue_limit_bonus: bonusEditing.value }
+          : c
+      ));
+      
+      // Update detail modal if open
+      if (detailModal.company?.id === bonusEditing.companyId) {
+        setDetailModal(prev => ({
+          ...prev,
+          company: prev.company ? { ...prev.company, revenue_limit_bonus: bonusEditing.value } : null
+        }));
+      }
+      
+      setBonusEditing(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar bônus',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingBonus(false);
+    }
+  };
+
+  const getPlanLimit = (planKey: string | null): number => {
+    if (!planKey) return 2000; // Default free plan limit
+    const plan = plans.find(p => p.key === planKey);
+    return plan?.revenue_limit ?? 2000;
+  };
+
+  const formatCurrencyValue = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   };
 
   const handleAction = async () => {
@@ -770,6 +862,66 @@ export default function AdminCompanies() {
                     <Badge variant={detailModal.company.is_open ? 'default' : 'secondary'}>
                       {detailModal.company.is_open ? 'Aberta' : 'Fechada'}
                     </Badge>
+                  </div>
+                </div>
+
+                {/* Revenue Limit Bonus Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Gift className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium">Bônus de Limite de Faturamento</h4>
+                  </div>
+                  
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Limite do plano</p>
+                        <p className="font-medium">{formatCurrencyValue(getPlanLimit(detailModal.company.subscription_plan))}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Bônus atual</p>
+                        <p className="font-medium text-primary">
+                          +{formatCurrencyValue(detailModal.company.revenue_limit_bonus || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <p className="text-muted-foreground">Limite total efetivo</p>
+                      <p className="font-bold text-lg">
+                        {formatCurrencyValue(getPlanLimit(detailModal.company.subscription_plan) + (detailModal.company.revenue_limit_bonus || 0))}
+                      </p>
+                    </div>
+
+                    <div className="border-t pt-3 mt-3">
+                      <Label htmlFor="bonus-value" className="text-sm">Definir novo bônus</Label>
+                      <div className="flex gap-2 mt-2">
+                        <CurrencyInput
+                          id="bonus-value"
+                          value={bonusEditing?.companyId === detailModal.company.id ? bonusEditing.value : (detailModal.company.revenue_limit_bonus || 0)}
+                          onChange={(val) => setBonusEditing({ 
+                            companyId: detailModal.company!.id, 
+                            value: parseFloat(val) || 0 
+                          })}
+                          placeholder="0,00"
+                          className="flex-1"
+                        />
+                        <Button 
+                          size="sm"
+                          onClick={handleSaveBonus}
+                          disabled={savingBonus || !bonusEditing || bonusEditing.companyId !== detailModal.company.id}
+                        >
+                          {savingBonus ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Este valor será somado ao limite do plano atual
+                      </p>
+                    </div>
                   </div>
                 </div>
                 

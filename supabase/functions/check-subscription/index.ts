@@ -77,9 +77,12 @@ serve(async (req) => {
     // This handles Mercado Pago subscriptions that don't use Stripe
     const { data: company, error: companyError } = await adminClient
       .from("companies")
-      .select("id, subscription_status, subscription_plan, subscription_end_date")
+      .select("id, subscription_status, subscription_plan, subscription_end_date, revenue_limit_bonus")
       .eq("owner_id", user.id)
       .maybeSingle();
+    
+    // Get the bonus amount (default to 0 if not set)
+    const revenueLimitBonus = Number(company?.revenue_limit_bonus) || 0;
 
     if (companyError) {
       logStep("Error fetching company", { error: companyError.message });
@@ -103,16 +106,23 @@ serve(async (req) => {
           .maybeSingle();
 
         if (plan) {
+          // Apply bonus to revenue limit
+          const effectiveLimit = (plan.revenue_limit || 5000) + revenueLimitBonus;
+          
           logStep("Active subscription found in database (Mercado Pago)", {
             plan: plan.key,
-            subscriptionEnd
+            subscriptionEnd,
+            baseLimit: plan.revenue_limit,
+            bonus: revenueLimitBonus,
+            effectiveLimit
           });
 
           return new Response(
             JSON.stringify({
               subscribed: true,
               plan: plan.key,
-              revenueLimit: plan.revenue_limit || 5000,
+              revenueLimit: effectiveLimit,
+              revenueLimitBonus,
               displayName: plan.name,
               subscriptionEnd,
             }),
@@ -152,11 +162,13 @@ serve(async (req) => {
           .maybeSingle();
 
         if (plan) {
+          const effectiveLimit = (plan.revenue_limit || 2000) + revenueLimitBonus;
           return new Response(
             JSON.stringify({
               subscribed: company.subscription_status === "active",
               plan: plan.key,
-              revenueLimit: plan.revenue_limit || 2000,
+              revenueLimit: effectiveLimit,
+              revenueLimitBonus,
               displayName: plan.name,
               subscriptionEnd: company.subscription_end_date,
             }),
@@ -172,7 +184,8 @@ serve(async (req) => {
         JSON.stringify({
           subscribed: false,
           plan: "free",
-          revenueLimit: 2000,
+          revenueLimit: 2000 + revenueLimitBonus,
+          revenueLimitBonus,
           displayName: "Plano Gratuito",
         }),
         {
@@ -192,7 +205,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         subscribed: false,
         plan: "free",
-        revenueLimit: 2000,
+        revenueLimit: 2000 + revenueLimitBonus,
+        revenueLimitBonus,
         displayName: "Plano Gratuito",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -220,7 +234,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         subscribed: false,
         plan: "free",
-        revenueLimit: 2000,
+        revenueLimit: 2000 + revenueLimitBonus,
+        revenueLimitBonus,
         displayName: "Plano Gratuito",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -256,8 +271,8 @@ serve(async (req) => {
     }
 
     const effectivePlanName = plan?.key || plan?.name || "unknown";
-    const effectiveRevenueLimit =
-      typeof plan?.revenue_limit === "number" ? plan.revenue_limit : 10000;
+    const basePlanLimit = typeof plan?.revenue_limit === "number" ? plan.revenue_limit : 10000;
+    const effectiveRevenueLimit = basePlanLimit + revenueLimitBonus;
 
     // Update company with Stripe subscription info
     if (company?.id) {
@@ -277,6 +292,7 @@ serve(async (req) => {
         subscribed: true,
         plan: effectivePlanName,
         revenueLimit: effectiveRevenueLimit,
+        revenueLimitBonus,
         displayName: plan?.name || "Plano Desconhecido",
         subscriptionEnd,
       }),

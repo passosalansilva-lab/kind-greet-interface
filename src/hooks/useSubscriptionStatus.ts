@@ -12,6 +12,7 @@ interface PlanInfo {
 interface SubscriptionStatus {
   plan: string;
   revenueLimit: number;
+  revenueLimitBonus: number;
   monthlyRevenue: number;
   displayName: string;
   subscriptionEnd?: string;
@@ -123,6 +124,7 @@ export function useSubscriptionStatus() {
         setStatus({
           plan: currentPlan,
           revenueLimit,
+          revenueLimitBonus: 0,
           monthlyRevenue,
           displayName,
           subscriptionEnd: company.subscription_end_date || undefined,
@@ -137,6 +139,7 @@ export function useSubscriptionStatus() {
       const typedSubscriptionData = (subscriptionData || {}) as {
         plan?: string;
         revenueLimit?: number;
+        revenueLimitBonus?: number;
         displayName?: string;
         subscriptionEnd?: string;
       };
@@ -154,6 +157,7 @@ export function useSubscriptionStatus() {
       setStatus({
         plan: currentPlan,
         revenueLimit,
+        revenueLimitBonus: typedSubscriptionData.revenueLimitBonus || 0,
         monthlyRevenue,
         displayName: typedSubscriptionData.displayName || 'Plano Gratuito',
         subscriptionEnd: typedSubscriptionData.subscriptionEnd,
@@ -167,6 +171,7 @@ export function useSubscriptionStatus() {
       setStatus({
         plan: 'free',
         revenueLimit: 2000,
+        revenueLimitBonus: 0,
         monthlyRevenue: 0,
         displayName: 'Plano Gratuito',
         usagePercentage: 0,
