@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, LayoutDashboard, Globe, UtensilsCrossed } from "lucide-react";
+import { Loader2, Upload, Trash2, LayoutDashboard, Globe, UtensilsCrossed, Clock, Save, Play } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 interface LogoLocation {
@@ -42,6 +44,11 @@ export default function SystemSettings() {
   const [logos, setLogos] = useState<Record<string, string | null>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [removingKey, setRemovingKey] = useState<string | null>(null);
+  
+  // Inactivity settings
+  const [inactivityDays, setInactivityDays] = useState<number>(15);
+  const [savingInactivity, setSavingInactivity] = useState(false);
+  const [runningCheck, setRunningCheck] = useState(false);
 
   useEffect(() => {
     checkAccess();
@@ -73,7 +80,7 @@ export default function SystemSettings() {
 
   const loadSettings = async () => {
     setLoading(true);
-    const keys = LOGO_LOCATIONS.map(l => l.key);
+    const keys = [...LOGO_LOCATIONS.map(l => l.key), "inactivity_suspension_days"];
     
     const { data, error } = await supabase
       .from("system_settings")
@@ -86,7 +93,11 @@ export default function SystemSettings() {
     } else {
       const logoMap: Record<string, string | null> = {};
       data?.forEach(item => {
-        logoMap[item.key] = item.value;
+        if (item.key === "inactivity_suspension_days") {
+          setInactivityDays(parseInt(item.value || "15", 10));
+        } else {
+          logoMap[item.key] = item.value;
+        }
       });
       setLogos(logoMap);
     }
@@ -169,6 +180,55 @@ export default function SystemSettings() {
     }
   };
 
+  const handleSaveInactivityDays = async () => {
+    if (inactivityDays < 1 || inactivityDays > 365) {
+      toast.error("O período deve ser entre 1 e 365 dias");
+      return;
+    }
+
+    setSavingInactivity(true);
+    try {
+      const { error } = await supabase
+        .from("system_settings")
+        .upsert(
+          { key: "inactivity_suspension_days", value: inactivityDays.toString() },
+          { onConflict: "key" }
+        );
+
+      if (error) throw error;
+      toast.success("Configuração salva com sucesso!");
+    } catch (error) {
+      console.error("Error saving inactivity days:", error);
+      toast.error("Erro ao salvar configuração");
+    } finally {
+      setSavingInactivity(false);
+    }
+  };
+
+  const handleRunInactivityCheck = async () => {
+    if (!confirm("Isso irá verificar e suspender empresas inativas agora. Deseja continuar?")) {
+      return;
+    }
+
+    setRunningCheck(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-inactive-companies");
+
+      if (error) throw error;
+
+      if (data?.cancelled > 0) {
+        toast.success(`Verificação concluída. ${data.cancelled} empresa(s) suspensa(s).`);
+      } else {
+        toast.success("Verificação concluída. Nenhuma empresa inativa encontrada.");
+      }
+    } catch (error: any) {
+      console.error("Error running inactivity check:", error);
+      toast.error("Erro ao executar verificação: " + (error.message || "Erro desconhecido"));
+    } finally {
+      setRunningCheck(false);
+    }
+  };
+
   if (loading || !hasAccess) {
     return (
       <DashboardLayout>
@@ -185,10 +245,81 @@ export default function SystemSettings() {
         <div>
           <h1 className="text-3xl font-bold">Configurações do Sistema</h1>
           <p className="text-muted-foreground mt-1">
-            Configure as logos que aparecem em diferentes partes do sistema.
+            Configure logos e outras opções gerais do sistema.
           </p>
         </div>
 
+        {/* Inactivity Suspension Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-warning/10 rounded-lg text-warning">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Suspensão por Inatividade</CardTitle>
+                <CardDescription>
+                  Empresas aprovadas que não receberam pedidos e não configuraram o cardápio serão suspensas automaticamente
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-end gap-4">
+              <div className="flex-1 max-w-[200px]">
+                <Label htmlFor="inactivity-days">Período de inatividade (dias)</Label>
+                <Input
+                  id="inactivity-days"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={inactivityDays}
+                  onChange={(e) => setInactivityDays(parseInt(e.target.value, 10) || 15)}
+                  className="mt-1.5"
+                />
+              </div>
+              <Button
+                onClick={handleSaveInactivityDays}
+                disabled={savingInactivity}
+                size="sm"
+              >
+                {savingInactivity ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Salvar
+              </Button>
+            </div>
+
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Empresas que permanecerem <strong>{inactivityDays} dias</strong> sem receber pedidos e sem configurar produtos/categorias serão suspensas automaticamente e receberão um email explicando o motivo.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={handleRunInactivityCheck}
+                disabled={runningCheck}
+                size="sm"
+              >
+                {runningCheck ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Play className="h-4 w-4 mr-2" />
+                )}
+                Executar verificação agora
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Verifica e suspende empresas inativas imediatamente
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Logo Settings */}
         {LOGO_LOCATIONS.map((location) => {
           const logoUrl = logos[location.key];
           const isUploading = uploadingKey === location.key;

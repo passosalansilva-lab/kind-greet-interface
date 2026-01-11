@@ -19,14 +19,21 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get the date 15 days ago
-    const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    // Get configurable inactivity days from system_settings (default 15)
+    const { data: settingData } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "inactivity_suspension_days")
+      .single();
 
-    // Find approved companies that were approved more than 15 days ago
-    // We'll check companies by their approval date (updated_at when status changed to approved)
-    // Since we don't have an explicit approval_date, we'll use a different approach:
-    // Check companies that are approved, created more than 15 days ago
+    const inactivityDays = settingData?.value ? parseInt(settingData.value, 10) : 15;
+    console.log(`Using inactivity period: ${inactivityDays} days`);
+
+    // Get the date X days ago
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - inactivityDays);
+
+    // Find approved companies that were approved more than X days ago
     const { data: companies, error: companiesError } = await supabase
       .from("companies")
       .select(`
@@ -41,13 +48,13 @@ const handler = async (req: Request): Promise<Response> => {
         menu_published
       `)
       .eq("status", "approved")
-      .lt("updated_at", fifteenDaysAgo.toISOString());
+      .lt("updated_at", cutoffDate.toISOString());
 
     if (companiesError) {
       throw companiesError;
     }
 
-    console.log(`Found ${companies?.length || 0} companies approved more than 15 days ago`);
+    console.log(`Found ${companies?.length || 0} companies approved more than ${inactivityDays} days ago`);
 
     const cancelledCompanies: string[] = [];
     const errors: string[] = [];
@@ -97,9 +104,9 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`Company ${company.name}: orders=${ordersCount}, products=${productsCount}, categories=${categoriesCount}, configured=${isConfigured}`);
 
-        // If no orders and not configured, cancel the company
+        // If no orders and not configured, suspend the company
         if (!hasOrders && !isConfigured) {
-          console.log(`Cancelling inactive company: ${company.name}`);
+          console.log(`Suspending inactive company: ${company.name}`);
 
           // Get owner email
           const { data: userData, error: userError } = await supabase.auth.admin.getUserById(company.owner_id);
@@ -125,41 +132,42 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
 
-          // Send inactivity email
+          // Send suspension email with inactivity reason
           if (ownerEmail) {
             try {
-              const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-inactivity-cancellation-email`, {
+              const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-company-suspension-email`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                   "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
                 },
                 body: JSON.stringify({
-                  companyName: company.name,
-                  ownerEmail,
-                  ownerName,
+                  companyId: company.id,
+                  ownerId: company.owner_id,
+                  reason: `Sua empresa permaneceu ${inactivityDays} dias sem receber pedidos e sem configurar o cardápio. Configure seus produtos e categorias para reativar sua conta.`,
                 }),
               });
 
               if (!emailResponse.ok) {
-                console.error(`Failed to send inactivity email for ${company.name}`);
+                console.error(`Failed to send suspension email for ${company.name}`);
               } else {
-                console.log(`Inactivity email sent to ${ownerEmail}`);
+                console.log(`Suspension email sent to ${ownerEmail}`);
               }
             } catch (emailError) {
-              console.error(`Error sending inactivity email for ${company.name}:`, emailError);
+              console.error(`Error sending suspension email for ${company.name}:`, emailError);
             }
           }
 
           // Create notification for the owner
           await supabase.from("notifications").insert({
             user_id: company.owner_id,
-            title: "Empresa cancelada por inatividade",
-            message: `Sua empresa "${company.name}" foi cancelada automaticamente após 15 dias sem configuração ou pedidos.`,
+            title: "Empresa suspensa por inatividade",
+            message: `Sua empresa "${company.name}" foi suspensa automaticamente após ${inactivityDays} dias sem configuração ou pedidos. Entre em contato com o suporte para reativar.`,
             type: "error",
             data: {
-              type: "company_cancelled_inactivity",
+              type: "company_suspended_inactivity",
               companyId: company.id,
+              inactivityDays,
             },
           });
 
@@ -171,11 +179,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`Finished. Cancelled ${cancelledCompanies.length} companies.`);
+    console.log(`Finished. Suspended ${cancelledCompanies.length} companies.`);
 
     return new Response(
       JSON.stringify({
         success: true,
+        inactivityDays,
         checked: companies?.length || 0,
         cancelled: cancelledCompanies.length,
         cancelledCompanies,
