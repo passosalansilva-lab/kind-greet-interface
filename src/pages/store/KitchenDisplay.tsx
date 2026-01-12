@@ -269,11 +269,13 @@ export default function KitchenDisplay() {
   const formatOptions = (options: any): { groupName: string; items: string[] }[] => {
     if (!options) return [];
     const grouped: Record<string, string[]> = {};
+    let hasAnyGroupName = false;
 
     if (Array.isArray(options)) {
       options.forEach((opt: any) => {
         // Formato antigo: { groupName, selectedOptions }
         if (opt.groupName && opt.selectedOptions) {
+          hasAnyGroupName = true;
           if (!grouped[opt.groupName]) grouped[opt.groupName] = [];
           opt.selectedOptions.forEach((sel: any) => {
             grouped[opt.groupName].push(sel.name);
@@ -281,19 +283,27 @@ export default function KitchenDisplay() {
         }
         // Formato novo: { name, priceModifier, groupName? }
         else if (opt.name) {
-          const group = opt.groupName || 'Adicionais';
+          const group = opt.groupName || 'Itens';
+          if (opt.groupName) hasAnyGroupName = true;
           if (!grouped[group]) grouped[group] = [];
           grouped[group].push(opt.name);
         }
         // Pizza meio a meio
         if (opt.half_half_flavors) {
+          hasAnyGroupName = true;
           if (!grouped['Pizza']) grouped['Pizza'] = [];
           grouped['Pizza'].push(`½ ${opt.half_half_flavors.join(" + ½ ")}`);
         }
       });
     }
 
-    return Object.entries(grouped).map(([groupName, items]) => ({ groupName, items }));
+    // Se nenhum item tem groupName, retorna tudo como "Itens"
+    const entries = Object.entries(grouped);
+    if (!hasAnyGroupName && entries.length === 1 && entries[0][0] === 'Itens') {
+      return entries.map(([groupName, items]) => ({ groupName: '', items }));
+    }
+
+    return entries.map(([groupName, items]) => ({ groupName, items }));
   };
 
   const confirmedOrders = orders.filter((o) => o.status === "confirmed");
@@ -545,8 +555,13 @@ export default function KitchenDisplay() {
                                     <p className="font-medium">{item.product_name}</p>
                                     {formatOptions(item.options).map((group, i) => (
                                       <div key={i} className="text-xs text-muted-foreground">
-                                        <span className="font-medium">{group.groupName}:</span>{' '}
-                                        {group.items.join(', ')}
+                                        {group.groupName ? (
+                                          <><span className="font-medium">{group.groupName}:</span> {group.items.join(', ')}</>
+                                        ) : (
+                                          group.items.map((itemName, idx) => (
+                                            <span key={idx}>• {itemName}{idx < group.items.length - 1 ? ' ' : ''}</span>
+                                          ))
+                                        )}
                                       </div>
                                     ))}
                                     {item.notes && (
@@ -658,8 +673,13 @@ export default function KitchenDisplay() {
                                     <p className="font-medium">{item.product_name}</p>
                                     {formatOptions(item.options).map((group, i) => (
                                       <div key={i} className="text-xs text-muted-foreground">
-                                        <span className="font-medium">{group.groupName}:</span>{' '}
-                                        {group.items.join(', ')}
+                                        {group.groupName ? (
+                                          <><span className="font-medium">{group.groupName}:</span> {group.items.join(', ')}</>
+                                        ) : (
+                                          group.items.map((itemName, idx) => (
+                                            <span key={idx}>• {itemName}{idx < group.items.length - 1 ? ' ' : ''}</span>
+                                          ))
+                                        )}
                                       </div>
                                     ))}
                                     {item.notes && (

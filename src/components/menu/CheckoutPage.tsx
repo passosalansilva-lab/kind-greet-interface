@@ -1352,16 +1352,23 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         
         // Agrupar opções por groupName
         if (item.options.length > 0) {
-          const grouped = item.options.reduce((acc, o) => {
-            const group = o.groupName || 'Adicionais';
-            if (!acc[group]) acc[group] = [];
-            acc[group].push(o.name);
-            return acc;
-          }, {} as Record<string, string[]>);
+          const hasGroupNames = item.options.some(o => o.groupName);
           
-          Object.entries(grouped).forEach(([groupName, names]) => {
-            message += `  ${groupName}: ${names.join(', ')}\n`;
-          });
+          if (hasGroupNames) {
+            const grouped = item.options.reduce((acc, o) => {
+              const group = o.groupName || 'Adicionais';
+              if (!acc[group]) acc[group] = [];
+              acc[group].push(o.name);
+              return acc;
+            }, {} as Record<string, string[]>);
+            
+            Object.entries(grouped).forEach(([groupName, names]) => {
+              message += `  ${groupName}: ${names.join(', ')}\n`;
+            });
+          } else {
+            // Legado: listar itens sem agrupamento
+            message += `  ${item.options.map(o => o.name).join(', ')}\n`;
+          }
         }
         
         if (item.notes) {
