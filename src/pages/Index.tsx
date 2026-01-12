@@ -171,6 +171,23 @@ export default function Index() {
     return () => clearInterval(timer);
   }, []);
 
+  // Close mobile menu when screen becomes large
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches && open) {
+        setOpen(false);
+      }
+    };
+    
+    // Check on mount
+    handleChange(mediaQuery);
+    
+    // Listen for changes
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [open]);
+
   const loadStats = async () => {
     try {
       const { data, error } = await supabase.rpc('get_landing_stats');
