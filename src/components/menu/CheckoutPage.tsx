@@ -136,9 +136,11 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
   const { items, subtotal, clearCart } = useCart();
   const { toast } = useToast();
 
-  // Debug: Log table props on mount and changes
+  // Debug logging for table orders
   useEffect(() => {
-    console.log('[CheckoutPage] Props received:', { tableNumber, tableSessionId, companyId });
+    if (tableNumber || tableSessionId) {
+      console.log('[CheckoutPage] Table order mode:', { tableNumber, tableSessionId, companyId });
+    }
   }, [tableNumber, tableSessionId, companyId]);
   
   const getCustomerStorageKey = (companyId: string | null | undefined) =>
@@ -639,9 +641,22 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       return;
     }
 
+    // A table order requires both tableNumber and tableSessionId to be properly linked
+    // If we have tableNumber but no tableSessionId, the order won't be linked to the session
+    const isTableOrder = !!tableSessionId; // Use tableSessionId as the source of truth
+    
+    // Safety check: if tableNumber is set but tableSessionId is missing, block the order
+    if (tableNumber && !tableSessionId) {
+      console.error('[CheckoutPage] Table order blocked: tableNumber exists but tableSessionId is null');
+      toast({
+        title: 'Erro na sessão da mesa',
+        description: 'Por favor, recarregue a página e tente novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Validate address fields only when NOT a table order
-    // isTableOrder is true if we have tableNumber OR tableSessionId
-    const isTableOrder = !!tableNumber || !!tableSessionId;
     if (!isTableOrder) {
       if (!data.street || data.street.length < 3) {
         toast({ title: 'Rua é obrigatória', variant: 'destructive' });
@@ -832,7 +847,8 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       let addressId: string | undefined = selectedAddress?.id;
       
       // For table orders, skip address creation
-      const isTableOrder = !!tableNumber || !!tableSessionId;
+      // Use tableSessionId as the source of truth (already validated above)
+      const isTableOrder = !!tableSessionId;
 
       // If using a new address or guest checkout, create address (not for table orders)
       if (!isTableOrder && (showAddressForm || !selectedAddress)) {
