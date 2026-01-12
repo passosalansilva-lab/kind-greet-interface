@@ -360,6 +360,43 @@ export default function LotteryManagement() {
 
       if (updateError) throw updateError;
 
+      // Get company name and winner email for notification
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyId)
+        .single();
+
+      // Get winner's email from customers table
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('email')
+        .eq('id', winner.customer_id)
+        .single();
+
+      // Send email to winner (non-blocking)
+      if (customerData?.email) {
+        const prizeDesc = drawPrize || settings.prize_description || 'Prêmio do sorteio';
+        
+        supabase.functions.invoke('send-lottery-winner-email', {
+          body: {
+            winner_name: winner.customer_name,
+            winner_email: customerData.email,
+            winner_phone: winner.customer_phone,
+            prize_description: prizeDesc,
+            company_name: companyData?.name || 'Nossa loja',
+            company_id: companyId,
+            draw_id: drawData.id,
+          },
+        }).then(({ error }) => {
+          if (error) {
+            console.error('Error sending winner email:', error);
+          } else {
+            console.log('Winner email sent successfully');
+          }
+        });
+      }
+
       // Set winner and show animation
       setCurrentWinner(winner);
       setShowDrawModal(false);

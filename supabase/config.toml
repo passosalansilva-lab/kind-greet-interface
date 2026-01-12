@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.send-bonus-email]
 verify_jwt = false
+
+[functions.send-lottery-winner-email]
+verify_jwt = false
