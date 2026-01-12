@@ -272,6 +272,11 @@ function PublicMenuContent() {
           
           const data = response.data;
           if (data.hasActiveSession) {
+            console.log('[PublicMenu] Active table session found:', {
+              sessionId: data.sessionId,
+              tableNumber: data.tableNumber,
+              tableId: data.tableId,
+            });
             setTableSessionValid(true);
             setTableNumber(data.tableNumber);
             setTableId(data.tableId);

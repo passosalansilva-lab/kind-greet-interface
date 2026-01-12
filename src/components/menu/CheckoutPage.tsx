@@ -607,7 +607,8 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
     }
 
     // Validate address fields only when NOT a table order
-    const isTableOrder = !!tableNumber;
+    // isTableOrder is true if we have tableNumber OR tableSessionId
+    const isTableOrder = !!tableNumber || !!tableSessionId;
     if (!isTableOrder) {
       if (!data.street || data.street.length < 3) {
         toast({ title: 'Rua é obrigatória', variant: 'destructive' });
@@ -798,7 +799,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       let addressId: string | undefined = selectedAddress?.id;
       
       // For table orders, skip address creation
-      const isTableOrder = !!tableNumber;
+      const isTableOrder = !!tableNumber || !!tableSessionId;
 
       // If using a new address or guest checkout, create address (not for table orders)
       if (!isTableOrder && (showAddressForm || !selectedAddress)) {
@@ -1139,6 +1140,16 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       const orderNotes = tableNumber 
         ? `🍽️ MESA ${tableNumber}${data.notes ? ` | ${data.notes}` : ''}`
         : (data.notes || null);
+
+      // Debug log for table order
+      if (tableNumber || tableSessionId) {
+        console.log('[CheckoutPage] Creating table order:', {
+          tableNumber,
+          tableSessionId,
+          isTableOrder,
+          source: isTableOrder ? 'table' : 'online',
+        });
+      }
 
       const { error: orderError } = await supabase
         .from('orders')

@@ -348,7 +348,7 @@ function SortableGroupCard({
                       />
                     </div>
                   </div>
-                  {/* Image upload for option */}
+                  {/* Image upload for option - OPTIONAL */}
                   <div className="flex items-center gap-2">
                     {inlineForm.image_url ? (
                       <div className="relative">
@@ -368,12 +368,16 @@ function SortableGroupCard({
                         </Button>
                       </div>
                     ) : (
-                      <ImageUpload
-                        value={inlineForm.image_url}
-                        onChange={(url) => setInlineForm(prev => ({ ...prev, image_url: url }))}
-                        folder={companyId}
-                        aspectRatio="square"
-                      />
+                      <div className="flex flex-col items-center">
+                        <ImageUpload
+                          value={null}
+                          onChange={(url) => setInlineForm(prev => ({ ...prev, image_url: url }))}
+                          folder={companyId}
+                          aspectRatio="square"
+                          className="w-16 h-16"
+                        />
+                        <span className="text-[10px] text-muted-foreground mt-1">Opcional</span>
+                      </div>
                     )}
                   </div>
                 </div>
