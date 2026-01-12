@@ -49,6 +49,7 @@ interface SubscriptionData {
   subscribed: boolean;
   plan: string;
   revenueLimit: number;
+  revenueLimitBonus?: number;
   displayName: string;
   subscriptionEnd?: string;
 }
@@ -545,7 +546,9 @@ export default function PlansPage() {
   const currentPlan = subscription?.plan || 'free';
   const monthlyRevenue = company?.monthly_revenue || 0;
   const currentPlanData = plans.find(p => p.key === currentPlan);
-  const revenueLimit = currentPlanData?.revenue_limit || subscription?.revenueLimit || 2000;
+  const basePlanLimit = currentPlanData?.revenue_limit || 2000;
+  const revenueLimitBonus = subscription?.revenueLimitBonus || 0;
+  const revenueLimit = subscription?.revenueLimit || basePlanLimit + revenueLimitBonus;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { 
@@ -617,6 +620,11 @@ export default function PlansPage() {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Limite de faturamento: {revenueLimit === -1 ? 'Ilimitado' : formatCurrency(revenueLimit)} por mês
+                  {revenueLimitBonus > 0 && (
+                    <span className="ml-1 text-primary">
+                      (inclui bônus de {formatCurrency(revenueLimitBonus)})
+                    </span>
+                  )}
                 </p>
                 {subscription.subscriptionEnd && (
                   <p className="text-xs text-muted-foreground">
@@ -651,6 +659,12 @@ export default function PlansPage() {
                   <p className="text-2xl font-bold">
                     {formatCurrency(monthlyRevenue)} / {revenueLimit === -1 ? '∞' : formatCurrency(revenueLimit)}
                   </p>
+                  {revenueLimitBonus > 0 && (
+                    <p className="text-xs text-primary flex items-center gap-1 mt-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                      Limite base: {formatCurrency(basePlanLimit)} + Bônus: {formatCurrency(revenueLimitBonus)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={subscription?.subscribed ? 'default' : 'secondary'}>
