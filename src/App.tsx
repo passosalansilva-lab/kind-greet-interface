@@ -21,6 +21,7 @@ import NfeSettings from "./pages/admin/NfeSettings";
 import AdminFeatures from "./pages/admin/AdminFeatures";
 import SystemSettings from "./pages/admin/SystemSettings";
 import DevDocs from "./pages/admin/DevDocs";
+import ReleaseNotes from "./pages/admin/ReleaseNotes";
 import NfeManagement from "./pages/store/NfeManagement";
 import NfeSetup from "./pages/store/NfeSetup";
 import StoreSettings from "./pages/store/StoreSettings";
@@ -393,6 +394,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <DevDocs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/admin/release-notes"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <ReleaseNotes />
                   </ProtectedRoute>
                 }
               />
