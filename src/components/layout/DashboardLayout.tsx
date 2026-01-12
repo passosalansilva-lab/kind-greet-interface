@@ -117,7 +117,7 @@ const navGroups: NavGroup[] = [
       { label: "Promoções", href: "/dashboard/promotions", icon: Megaphone, roles: ["store_owner", "store_staff"], permission: "can_manage_promotions", featureKey: "promotions" },
       { label: "Cupons", href: "/dashboard/coupons", icon: Percent, roles: ["store_owner", "store_staff"], permission: "can_manage_coupons", featureKey: "coupons" },
       { label: "Indique e Ganhe", href: "/dashboard/referrals", icon: Gift, roles: ["store_owner"], featureKey: "referrals" },
-      /* { label: "Sorteios", href: "/dashboard/lottery", icon: Ticket, roles: ["store_owner"] } */,
+      { label: "Sorteios", href: "/dashboard/lottery", icon: Ticket, roles: ["store_owner"], featureKey: "lottery" },
     ],
   },
   {
