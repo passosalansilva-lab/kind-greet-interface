@@ -215,3 +215,9 @@ verify_jwt = false
 
 [functions.register-referred-customer]
 verify_jwt = false
+
+[functions.send-subscription-payment-alert]
+verify_jwt = false
+
+[functions.check-subscription-expirations]
+verify_jwt = false
