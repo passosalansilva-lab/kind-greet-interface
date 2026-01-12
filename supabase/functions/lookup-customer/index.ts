@@ -47,7 +47,7 @@ serve(async (req) => {
       );
     }
 
-    const { email, phone } = await req.json();
+    const { email, phone, companyId } = await req.json();
     
     if (!email && !phone) {
       return new Response(
@@ -130,13 +130,19 @@ serve(async (req) => {
     if (!customer && normalizedEmail) {
       console.log('[LOOKUP-CUSTOMER] No customer found, falling back to orders for email:', normalizedEmail);
 
-      const { data: lastOrder, error: orderError } = await supabase
+      // Se companyId foi fornecido, busca apenas pedidos dessa empresa
+      let ordersQuery = supabase
         .from('orders')
-        .select('id, customer_name, customer_email, customer_phone')
+        .select('id, customer_name, customer_email, customer_phone, company_id')
         .ilike('customer_email', `${normalizedEmail}%`)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+      
+      if (companyId) {
+        ordersQuery = ordersQuery.eq('company_id', companyId);
+      }
+
+      const { data: lastOrder, error: orderError } = await ordersQuery.maybeSingle();
 
       if (orderError) {
         console.error('[LOOKUP-CUSTOMER] Error reading orders for email lookup:', orderError);
@@ -210,6 +216,39 @@ serve(async (req) => {
       } else {
         console.log('[LOOKUP-CUSTOMER] No order found for email fallback:', normalizedEmail);
       }
+    }
+
+    // Se companyId foi fornecido, verifica se o cliente tem pedidos nessa empresa
+    if (customer && companyId) {
+      const { data: hasOrderInCompany, error: orderCheckError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('customer_id', customer.id)
+        .eq('company_id', companyId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (orderCheckError) {
+        console.error('[LOOKUP-CUSTOMER] Error checking customer orders in company:', orderCheckError);
+      }
+      
+      // Se não tem pedido na empresa, ainda retorna o cliente mas indica que é novo nessa empresa
+      const isNewToCompany = !hasOrderInCompany;
+      
+      console.log(`[LOOKUP-CUSTOMER] Returning customer: ${customer.id} (email: ${customer.email}, phone: ${customer.phone}, newToCompany: ${isNewToCompany})`);
+      
+      return new Response(
+        JSON.stringify({ 
+          found: true, 
+          customerId: customer.id,
+          firstName: customer.name?.split(' ')[0] || 'Cliente',
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          isNewToCompany,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!customer) {
