@@ -24,8 +24,13 @@ CREATE INDEX IF NOT EXISTS idx_companies_subscription_status
 ON public.companies(subscription_status) 
 WHERE subscription_status IN ('active', 'grace_period');
 
--- 3. Remover job anterior se existir
-SELECT cron.unschedule('check-subscription-expirations');
+-- 3. Remover job anterior se existir (ignora erro se não existir)
+DO $$ 
+BEGIN
+  PERFORM cron.unschedule('check-subscription-expirations');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Job check-subscription-expirations não existia, continuando...';
+END $$;
 
 -- 4. Agendar cron para rodar diariamente às 11:00 UTC (8:00 BRT)
 SELECT cron.schedule(
