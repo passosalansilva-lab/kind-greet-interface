@@ -17,7 +17,9 @@ import {
   Copy,
   CreditCard,
   QrCode,
-  TrendingUp
+  TrendingUp,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import { format, subDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -30,8 +32,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,6 +93,11 @@ export default function PaymentTransactions() {
   
   // Details modal
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  
+  // Refund modal
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refunding, setRefunding] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
@@ -318,6 +326,71 @@ export default function PaymentTransactions() {
       title: 'Copiado!',
       description: 'ID copiado para a área de transferência.',
     });
+  };
+
+  const canRefund = (tx: Transaction): boolean => {
+    // Can only refund approved payments with a payment ID
+    if (tx.payment_status !== 'paid') return false;
+    if (!tx.stripe_payment_intent_id) return false;
+    // Only MercadoPago payments can be refunded (numeric IDs for PIX, mp_ prefix for cards)
+    const paymentId = tx.stripe_payment_intent_id;
+    return /^\d+$/.test(paymentId) || paymentId.startsWith('mp_');
+  };
+
+  const handleOpenRefundDialog = (tx: Transaction) => {
+    setSelectedTransaction(tx);
+    setRefundAmount(tx.total.toFixed(2));
+    setShowRefundDialog(true);
+  };
+
+  const handleRefund = async () => {
+    if (!selectedTransaction || !refundAmount) return;
+
+    const amount = parseFloat(refundAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0 || amount > selectedTransaction.total) {
+      toast({
+        title: 'Valor inválido',
+        description: 'O valor do estorno deve ser maior que zero e não pode exceder o valor da transação.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setRefunding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('refund-mercadopago-payment', {
+        body: {
+          payment_id: selectedTransaction.stripe_payment_intent_id,
+          amount: amount,
+          order_id: selectedTransaction.id,
+          reason: 'Estorno solicitado pelo lojista',
+        },
+      });
+
+      if (error) throw error;
+
+      // Reload transactions
+      await loadTransactions();
+      
+      toast({
+        title: 'Estorno realizado!',
+        description: `Estorno de ${formatCurrency(amount)} processado com sucesso.`,
+      });
+      
+      setShowRefundDialog(false);
+      setShowDetails(false);
+      setSelectedTransaction(null);
+      setRefundAmount('');
+    } catch (error: any) {
+      console.error('Refund error:', error);
+      toast({
+        title: 'Erro ao processar estorno',
+        description: error.message || 'Não foi possível processar o estorno. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRefunding(false);
+    }
   };
 
   return (
@@ -656,24 +729,119 @@ export default function PaymentTransactions() {
                   )}
                 </div>
 
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate(`/dashboard/orders`)}
-                  >
-                    Ver Pedido
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="flex-1"
-                    onClick={() => setShowDetails(false)}
-                  >
-                    Fechar
-                  </Button>
+                <div className="flex flex-col gap-2 pt-4">
+                  {canRefund(selectedTransaction) && (
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => handleOpenRefundDialog(selectedTransaction)}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Solicitar Estorno
+                    </Button>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => navigate(`/dashboard/orders`)}
+                    >
+                      Ver Pedido
+                    </Button>
+                    <Button
+                      variant="default"
+                      className="flex-1"
+                      onClick={() => setShowDetails(false)}
+                    >
+                      Fechar
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Refund Confirmation Dialog */}
+        <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-destructive" />
+                Solicitar Estorno
+              </DialogTitle>
+              <DialogDescription>
+                Esta ação irá devolver o valor ao cliente. O estorno será processado pelo Mercado Pago.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTransaction && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Cliente</span>
+                    <span className="font-medium">{selectedTransaction.customer_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Valor Original</span>
+                    <span className="font-bold">{formatCurrency(selectedTransaction.total)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Método</span>
+                    {getPaymentMethodBadge(selectedTransaction)}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="refundAmount">Valor do Estorno (R$)</Label>
+                  <Input
+                    id="refundAmount"
+                    type="text"
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Máximo: {formatCurrency(selectedTransaction.total)}. Para estorno parcial, informe um valor menor.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    <AlertCircle className="h-4 w-4 inline mr-1" />
+                    Atenção: Esta ação não pode ser desfeita. O valor será devolvido ao cliente.
+                  </p>
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRefundDialog(false);
+                  setRefundAmount('');
+                }}
+                disabled={refunding}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleRefund}
+                disabled={refunding || !refundAmount}
+              >
+                {refunding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Confirmar Estorno
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
