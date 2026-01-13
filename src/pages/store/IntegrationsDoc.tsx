@@ -15,14 +15,28 @@ import {
   CheckCircle2,
   ExternalLink,
   Copy,
-  Settings
+  Settings,
+  ZoomIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import mercadopagoPanel from '@/assets/mercadopago-credentials-panel.png';
+import picpayPanel from '@/assets/picpay-credentials-panel.png';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function IntegrationsDoc() {
   const { user } = useAuth();
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageTitle, setSelectedImageTitle] = useState('');
+
+  const openImageModal = (imageSrc: string, title: string) => {
+    setSelectedImage(imageSrc);
+    setSelectedImageTitle(title);
+    setImageModalOpen(true);
+  };
   
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -117,6 +131,26 @@ export default function IntegrationsDoc() {
                       <li>O sistema validará automaticamente suas credenciais</li>
                     </ol>
 
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Onde encontrar as credenciais</h4>
+                      <div 
+                        className="relative group cursor-pointer rounded-lg overflow-hidden border"
+                        onClick={() => openImageModal(mercadopagoPanel, 'Painel Mercado Pago')}
+                      >
+                        <img 
+                          src={mercadopagoPanel} 
+                          alt="Painel de credenciais do Mercado Pago" 
+                          className="w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 text-center">
+                        Clique para ampliar • Acesse Credenciais no menu lateral
+                      </p>
+                    </div>
+
                     <Alert>
                       <Info className="h-4 w-4" />
                       <AlertTitle>Webhook automático</AlertTitle>
@@ -183,6 +217,26 @@ export default function IntegrationsDoc() {
                       <li>Insira o <strong>Client ID</strong> e <strong>Client Secret</strong></li>
                       <li>O sistema validará automaticamente suas credenciais</li>
                     </ol>
+
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Onde encontrar as credenciais</h4>
+                      <div 
+                        className="relative group cursor-pointer rounded-lg overflow-hidden border"
+                        onClick={() => openImageModal(picpayPanel, 'Painel PicPay')}
+                      >
+                        <img 
+                          src={picpayPanel} 
+                          alt="Painel de configuração do PicPay" 
+                          className="w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 text-center">
+                        Clique para ampliar • Settings → API Token e URL de Notificação
+                      </p>
+                    </div>
 
                     <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
                       <Settings className="h-4 w-4 text-amber-600" />
@@ -514,6 +568,20 @@ export default function IntegrationsDoc() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Image Modal */}
+      <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+        <DialogContent className="max-w-4xl p-2">
+          <DialogTitle className="sr-only">{selectedImageTitle}</DialogTitle>
+          {selectedImage && (
+            <img 
+              src={selectedImage} 
+              alt={selectedImageTitle} 
+              className="w-full h-auto rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
