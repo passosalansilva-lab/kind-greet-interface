@@ -206,12 +206,22 @@ serve(async (req) => {
       .toISOString()
       .slice(0, 10); // YYYY-MM-DD (PicPay só aceita data, não hora)
 
+    // Webhook URL para receber notificações do PicPay
+    const webhookUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/picpay-webhook`;
+
     const createChargePayload = {
       charge: {
         name: `Pedido ${company.name}`.slice(0, 60),
         description: "Pagamento via PicPay",
+        // order_number é limitado a 15 chars, usar apenas para display
         order_number: String(pendingId).slice(0, 15),
+        // merchantChargeId é o campo correto para identificar o pedido no webhook
+        // PicPay retorna este valor no webhook payload como data.merchantChargeId
+        merchantChargeId: pendingId,
         redirect_url: redirectUrl,
+        // notification_url para receber webhooks (se suportado pela versão da API)
+        notification_url: webhookUrl,
+        callback_url: webhookUrl,
         payment: {
           methods: ["BRCODE"],
           brcode_arrangements: ["PICPAY", "PIX"],
@@ -221,6 +231,9 @@ serve(async (req) => {
           delivery: deliveryCents,
         },
       },
+      // Campos adicionais para garantir identificação
+      referenceId: pendingId,
+      externalReference: pendingId,
       options: {
         allow_create_pix_key: true,
         expired_at: expiredAtDate,
