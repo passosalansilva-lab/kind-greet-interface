@@ -180,10 +180,10 @@ serve(async (req) => {
     // Docs: https://developers-business.picpay.com/payment-link/docs/introduction
     const totalCents = Math.max(1, Math.round((body.total || 0) * 100));
 
-    // PIX expira em 30 minutos (formato YYYY-MM-DD)
-    const expiredAtDate = new Date(Date.now() + 30 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    // PIX expira amanhã (PicPay exige data após hoje)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const expiredAtDate = tomorrow.toISOString().slice(0, 10);
 
     // Payload conforme documentação oficial
     // - options é obrigatório
