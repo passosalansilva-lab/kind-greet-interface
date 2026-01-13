@@ -180,7 +180,14 @@ serve(async (req) => {
     // Docs: https://developers-business.picpay.com/payment-link/docs/introduction
     const totalCents = Math.max(1, Math.round((body.total || 0) * 100));
 
-    // Payload simplificado - apenas campos essenciais
+    // PIX expira em 30 minutos (formato YYYY-MM-DD)
+    const expiredAtDate = new Date(Date.now() + 30 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    // Payload conforme documentação oficial
+    // - options é obrigatório
+    // - brcode_arrangements é obrigatório quando BRCODE está nos methods
     const createChargePayload = {
       charge: {
         name: `Pedido ${company.name}`.slice(0, 60),
@@ -188,9 +195,14 @@ serve(async (req) => {
         redirect_url: redirectUrl,
         payment: {
           methods: ["BRCODE"],
+          brcode_arrangements: ["PIX"],
         },
         amounts: {
           product: totalCents,
+        },
+        options: {
+          allow_create_pix_key: true,
+          expired_at: expiredAtDate,
         },
       },
     };
