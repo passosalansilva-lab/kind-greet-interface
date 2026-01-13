@@ -134,7 +134,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "CardápioOn <noreply@cardapioon.com.br>",
+          from: "CardPon <contato@cardpondelivery.com>",
           to: [email],
           subject: "Código de redefinição de senha",
           html: htmlContent,
