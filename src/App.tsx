@@ -9,6 +9,7 @@ import { ProtectedFeatureRoute } from "@/components/layout/ProtectedFeatureRoute
 import { PageTitle } from "@/components/PageTitle";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import PublicMenu from "./pages/PublicMenu";
 import AdminCompanies from "./pages/admin/AdminCompanies";
@@ -86,6 +87,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/menu/:slug" element={<PublicMenu />} />
               <Route path="/s/:slug" element={<ShareRedirect />} />
               <Route path="/my-orders" element={<MyOrders />} />

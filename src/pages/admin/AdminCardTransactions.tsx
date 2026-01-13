@@ -316,11 +316,12 @@ export default function AdminCardTransactions() {
     setRefunding(true);
     try {
       // Call the refund edge function
-      const { data, error } = await supabase.functions.invoke("cancel-mercadopago-payment", {
+      const { data, error } = await supabase.functions.invoke("refund-mercadopago-payment", {
         body: {
           payment_id: selectedTransaction.mercadopago_payment_id,
           amount: amount,
           order_id: selectedTransaction.order_id,
+          reason: "Estorno solicitado pelo Super Admin",
         },
       });
 

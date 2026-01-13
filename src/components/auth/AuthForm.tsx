@@ -393,38 +393,7 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
         <div className="text-center">
           <button
             type="button"
-            onClick={async () => {
-              const email = loginForm.getValues('email')?.trim();
-              if (!email) {
-                toast({
-                  title: 'Informe seu email',
-                  description: 'Preencha o campo de email para redefinir a senha.',
-                  variant: 'destructive',
-                });
-                return;
-              }
-              try {
-                setLoading(true);
-                const redirectUrl = `${window.location.origin}/auth`;
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                  redirectTo: redirectUrl,
-                });
-                if (error) {
-                  toast({
-                    title: 'Erro ao enviar email',
-                    description: 'Tente novamente em alguns instantes.',
-                    variant: 'destructive',
-                  });
-                  return;
-                }
-                toast({
-                  title: 'Confira seu email',
-                  description: 'Se o email existir, enviaremos um link para redefinir sua senha.',
-                });
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onClick={() => navigate('/reset-password')}
             className="mt-2 text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             Esqueci minha senha
