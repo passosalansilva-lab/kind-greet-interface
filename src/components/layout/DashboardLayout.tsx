@@ -86,6 +86,7 @@ const superAdminNavItems: NavItem[] = [
   { label: "Empresas", href: "/dashboard/companies", icon: Building2, roles: ["super_admin"] },
   { label: "Gerenciar Planos", href: "/dashboard/admin/plans", icon: Sliders, roles: ["super_admin"] },
   { label: "Funcionalidades", href: "/dashboard/admin/features", icon: Package, roles: ["super_admin"] },
+  { label: "Transações Cartão", href: "/dashboard/admin/card-transactions", icon: CreditCard, roles: ["super_admin"] },
   { label: "Nota Fiscal (NFe)", href: "/dashboard/admin/nfe", icon: FileText, roles: ["super_admin"] },
   { label: "Logs do Sistema", href: "/dashboard/admin/logs", icon: ScrollText, roles: ["super_admin"] },
   { label: "Saúde das Integrações", href: "/dashboard/admin/integrations", icon: Activity, roles: ["super_admin"] },

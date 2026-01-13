@@ -43,6 +43,7 @@ import StaffManagement from "./pages/store/StaffManagement";
 import CustomerReferrals from "./pages/store/CustomerReferrals";
 import LotteryManagement from "./pages/store/LotteryManagement";
 import CardTransactions from "./pages/store/CardTransactions";
+import AdminCardTransactions from "./pages/admin/AdminCardTransactions";
 import MyOrders from "./pages/MyOrders";
 import OrderTracking from "./pages/OrderTracking";
 import OrderHistory from "./pages/OrderHistory";
@@ -395,6 +396,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <IntegrationHealth />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/admin/card-transactions"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <AdminCardTransactions />
                   </ProtectedRoute>
                 }
               />
