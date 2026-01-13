@@ -585,7 +585,7 @@ export default function EmailTemplates() {
   const loadTemplates = async () => {
     setLoading(true);
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("email_templates")
       .select("*")
       .order("name");
@@ -613,7 +613,7 @@ export default function EmailTemplates() {
     
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .update({
           subject: editedSubject,
@@ -644,7 +644,7 @@ export default function EmailTemplates() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .insert({
           name: newTemplateName,
@@ -706,7 +706,7 @@ export default function EmailTemplates() {
     if (!deletingTemplate) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .delete()
         .eq("id", deletingTemplate.id);
@@ -727,7 +727,7 @@ export default function EmailTemplates() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .upsert({
           slug: restoringTemplate.slug,
