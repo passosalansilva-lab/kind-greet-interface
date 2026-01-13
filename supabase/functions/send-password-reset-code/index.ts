@@ -48,10 +48,10 @@ serve(async (req) => {
     const user = users.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
     
     if (!user) {
-      // Don't reveal if user doesn't exist - return success anyway
+      // Return error if user doesn't exist
       return new Response(
-        JSON.stringify({ success: true, message: "Se o email existir, enviaremos um código" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Não encontramos uma conta com este email" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
