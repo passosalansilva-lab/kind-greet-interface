@@ -145,10 +145,27 @@ serve(async (req) => {
     }
 
     const paymentData = JSON.parse(responseText);
-    const paymentStatus = String(paymentData.status || "").toLowerCase();
+    
+    // Log completo para debug - PicPay pode ter status em campos diferentes
+    console.log("[check-picpay-payment] Full payment data keys:", Object.keys(paymentData));
+    console.log("[check-picpay-payment] Raw status field:", paymentData.status);
+    console.log("[check-picpay-payment] Charge status:", paymentData.charge?.status);
+    console.log("[check-picpay-payment] Payment status:", paymentData.payment?.status);
+    console.log("[check-picpay-payment] Transaction status:", paymentData.transaction?.status);
+    
+    // Tentar encontrar o status em diferentes campos possíveis
+    const rawStatus = 
+      paymentData.status || 
+      paymentData.charge?.status || 
+      paymentData.payment?.status ||
+      paymentData.transaction?.status ||
+      paymentData.payments?.[0]?.status ||
+      "";
+    
+    const paymentStatus = String(rawStatus).toLowerCase();
     
     // Log detalhado para debug
-    console.log("[check-picpay-payment] Payment status:", paymentStatus);
+    console.log("[check-picpay-payment] Resolved payment status:", paymentStatus);
     console.log("[check-picpay-payment] Full payment data:", JSON.stringify(paymentData));
 
     // 5) Aprovado - PicPay pode retornar "paid", "approved", "completed" ou "PAID"
