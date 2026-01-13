@@ -287,6 +287,7 @@ const App = () => (
                     <CardTransactions />
                   </ProtectedRoute>
                 }
+              />
               <Route
                 path="/dashboard/nfe"
                 element={

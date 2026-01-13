@@ -36,7 +36,6 @@ interface PaymentSettings {
   pix_enabled: boolean;
   card_enabled: boolean;
 }
-}
 
 interface MercadoPagoConfigProps {
   companyId: string;
