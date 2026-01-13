@@ -36,7 +36,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, CartProvider, CartItem } from '@/hooks/useCart';
-import { ProductModal, CartDrawer } from '@/components/menu/ProductModal';
+import { CartDrawer } from '@/components/menu/ProductModal';
+import { ProductSheet } from '@/components/menu/ProductSheet';
 import { CheckoutPage } from '@/components/menu/CheckoutPage';
 import { ComboModal } from '@/components/menu/ComboModal';
 // import { TrackOrderModal } from '@/components/menu/TrackOrderModal';
@@ -1901,8 +1902,8 @@ function PublicMenuContent() {
         </div>
       )}
 
-      {/* Product Modal */}
-      <ProductModal
+      {/* Product Sheet (slide from right) */}
+      <ProductSheet
         product={selectedProduct}
         open={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
