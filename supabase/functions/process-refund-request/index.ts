@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+import { getEmailTemplate, replaceTemplateVariables, replaceSubjectVariables, getPlatformUrl } from "../_shared/email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -323,6 +325,11 @@ serve(async (req) => {
       .eq("id", request_id);
 
     // Update order status or subscription payment status
+    let customerEmail: string | null = null;
+    let customerName: string | null = null;
+    let orderCode: string | null = null;
+    let storeName: string | null = null;
+
     if (isSubscriptionRefund) {
       // Update subscription_payments status
       await supabase
@@ -346,6 +353,19 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", refundRequest.order_id);
+
+      // Get customer info from order
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("customer_email, customer_name, order_code")
+        .eq("id", refundRequest.order_id)
+        .maybeSingle();
+
+      if (orderData) {
+        customerEmail = orderData.customer_email;
+        customerName = orderData.customer_name;
+        orderCode = orderData.order_code;
+      }
     }
 
     // Log the refund
@@ -371,6 +391,8 @@ serve(async (req) => {
       .single();
 
     if (company) {
+      storeName = company.name;
+      
       const notificationTitle = isSubscriptionRefund 
         ? "Estorno de Assinatura Aprovado" 
         : "Estorno Aprovado e Processado";
@@ -387,6 +409,139 @@ serve(async (req) => {
       });
     }
 
+    // Send email notification to customer (for order refunds only)
+    if (!isSubscriptionRefund && customerEmail) {
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      
+      if (resendApiKey) {
+        try {
+          const resend = new Resend(resendApiKey);
+          const platformUrl = await getPlatformUrl();
+          
+          // Try to get email template from database
+          const template = await getEmailTemplate("customer-refund-notification");
+          
+          const formattedAmount = `R$ ${refundRequest.requested_amount.toFixed(2).replace('.', ',')}`;
+          const refundDate = new Date().toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          let emailSubject: string;
+          let emailHtml: string;
+
+          if (template) {
+            // Use database template
+            const templateVars = {
+              customerName: customerName || 'Cliente',
+              storeName: storeName || 'Loja',
+              orderCode: orderCode || refundRequest.payment_id,
+              refundAmount: formattedAmount,
+              refundDate: refundDate,
+              platformUrl: platformUrl,
+            };
+
+            emailSubject = replaceSubjectVariables(template.subject, templateVars);
+            emailHtml = replaceTemplateVariables(template.html_content, templateVars);
+          } else {
+            // Use fallback template
+            emailSubject = `Estorno processado - Pedido ${orderCode || refundRequest.payment_id}`;
+            emailHtml = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Estorno Processado</title>
+              </head>
+              <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td align="center" style="padding: 40px 0;">
+                      <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <tr>
+                          <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">✓ Estorno Processado</h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 30px 40px;">
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
+                              Olá <strong>${customerName || 'Cliente'}</strong>,
+                            </p>
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
+                              O estorno do seu pedido foi processado com sucesso. Confira os detalhes abaixo:
+                            </p>
+                            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #f9fafb; border-radius: 6px;">
+                              <tr>
+                                <td style="padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
+                                  <span style="color: #6b7280; font-size: 14px;">Loja</span><br>
+                                  <strong style="color: #333333; font-size: 16px;">${storeName || 'Loja'}</strong>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
+                                  <span style="color: #6b7280; font-size: 14px;">Código do Pedido</span><br>
+                                  <strong style="color: #333333; font-size: 16px;">${orderCode || refundRequest.payment_id}</strong>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
+                                  <span style="color: #6b7280; font-size: 14px;">Valor Estornado</span><br>
+                                  <strong style="color: #10b981; font-size: 20px;">${formattedAmount}</strong>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 15px 20px;">
+                                  <span style="color: #6b7280; font-size: 14px;">Data do Estorno</span><br>
+                                  <strong style="color: #333333; font-size: 16px;">${refundDate}</strong>
+                                </td>
+                              </tr>
+                            </table>
+                            <p style="margin: 20px 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                              O valor será creditado na sua conta de acordo com o prazo do seu método de pagamento (geralmente em até 7 dias úteis para cartão de crédito ou imediatamente para PIX).
+                            </p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 20px 40px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                              Este é um e-mail automático enviado por ${storeName || 'nossa loja'}.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </body>
+              </html>
+            `;
+          }
+
+          const { error: emailError } = await resend.emails.send({
+            from: "Cardapon <noreply@cardpondelivery.com>",
+            to: [customerEmail],
+            subject: emailSubject,
+            html: emailHtml,
+          });
+
+          if (emailError) {
+            console.error("[process-refund-request] Error sending customer email:", emailError);
+          } else {
+            console.log("[process-refund-request] Customer email sent successfully to:", customerEmail);
+          }
+        } catch (emailErr) {
+          console.error("[process-refund-request] Exception sending customer email:", emailErr);
+        }
+      } else {
+        console.log("[process-refund-request] RESEND_API_KEY not configured, skipping customer email");
+      }
+    }
+
     console.log("[process-refund-request] Refund completed:", {
       refund_id: refundData.id,
       amount: refundRequest.requested_amount,
@@ -398,6 +553,7 @@ serve(async (req) => {
         refund_id: refundData.id,
         amount: refundRequest.requested_amount,
         message: `Estorno de R$ ${refundRequest.requested_amount.toFixed(2)} processado com sucesso`,
+        customer_notified: !isSubscriptionRefund && !!customerEmail,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
