@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Check, AlertCircle } from 'lucide-react';
+import { CreditCard, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface PaymentGatewaySettings {
   mercadopago_enabled: boolean;
@@ -17,9 +17,10 @@ interface PaymentGatewaySettings {
 
 interface PaymentGatewaySelectorProps {
   companyId: string;
+  onGatewayChange?: (gateway: string) => void;
 }
 
-export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProps) {
+export function PaymentGatewaySelector({ companyId, onGatewayChange }: PaymentGatewaySelectorProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,14 +64,14 @@ export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProp
     }
   };
 
-  const handleGatewayChange = async (gateway: string) => {
+  const handleGatewaySelect = async (gateway: string) => {
     if (!settings) return;
 
     // Verificar se o gateway selecionado está configurado
     if (gateway === 'mercadopago' && (!settings.mercadopago_enabled || !settings.mercadopago_verified)) {
       toast({
         title: 'Mercado Pago não configurado',
-        description: 'Configure o Mercado Pago antes de selecioná-lo como gateway ativo.',
+        description: 'Configure e valide o Mercado Pago abaixo antes de selecioná-lo.',
         variant: 'destructive',
       });
       return;
@@ -79,11 +80,14 @@ export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProp
     if (gateway === 'picpay' && (!settings.picpay_enabled || !settings.picpay_verified)) {
       toast({
         title: 'PicPay não configurado',
-        description: 'Configure o PicPay antes de selecioná-lo como gateway ativo.',
+        description: 'Configure e valide o PicPay abaixo antes de selecioná-lo.',
         variant: 'destructive',
       });
       return;
     }
+
+    // Se já é o gateway ativo, não fazer nada
+    if (settings.active_payment_gateway === gateway) return;
 
     setSaving(true);
     try {
@@ -95,9 +99,12 @@ export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProp
       if (error) throw error;
 
       setSettings({ ...settings, active_payment_gateway: gateway });
+      onGatewayChange?.(gateway);
+      
+      const gatewayName = gateway === 'mercadopago' ? 'Mercado Pago' : 'PicPay';
       toast({
-        title: 'Gateway atualizado',
-        description: `${gateway === 'mercadopago' ? 'Mercado Pago' : 'PicPay'} será usado para receber pagamentos online.`,
+        title: `${gatewayName} ativado!`,
+        description: `Os clientes pagarão via ${gatewayName} no checkout.`,
       });
     } catch (error) {
       console.error('Error updating gateway:', error);
@@ -121,7 +128,9 @@ export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProp
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="animate-pulse h-24 bg-muted rounded-lg" />
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -133,131 +142,133 @@ export function PaymentGatewaySelector({ companyId }: PaymentGatewaySelectorProp
   const picPayReady = settings.picpay_enabled && settings.picpay_verified;
   const hasAnyGateway = mercadoPagoReady || picPayReady;
 
-  if (!hasAnyGateway) {
-    return (
-      <Card className="border-muted">
-        <CardHeader>
-          <CardTitle className="text-lg font-display flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" />
-            Gateway de Pagamento Ativo
-          </CardTitle>
-          <CardDescription>
-            Configure pelo menos um gateway de pagamento (Mercado Pago ou PicPay) para receber pagamentos online.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <AlertCircle className="h-4 w-4" />
-            Nenhum gateway configurado
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
+    <Card className="border-2 border-dashed">
       <CardHeader>
         <CardTitle className="text-lg font-display flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-primary" />
           Gateway de Pagamento Ativo
         </CardTitle>
         <CardDescription>
-          Escolha qual gateway será usado para processar os pagamentos online no seu cardápio.
+          {hasAnyGateway 
+            ? 'Escolha qual gateway será usado para processar pagamentos online. Apenas um pode estar ativo por vez.'
+            : 'Configure pelo menos um gateway de pagamento abaixo para receber pagamentos online.'
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <RadioGroup
-          value={settings.active_payment_gateway}
-          onValueChange={handleGatewayChange}
-          className="space-y-3"
-          disabled={saving}
-        >
+        <div className="grid gap-3 sm:grid-cols-2">
           {/* Mercado Pago */}
-          <div className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
-            settings.active_payment_gateway === 'mercadopago' 
-              ? 'border-primary bg-primary/5' 
-              : 'border-border'
-          } ${!mercadoPagoReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-            <RadioGroupItem 
-              value="mercadopago" 
-              id="gateway-mercadopago" 
-              disabled={!mercadoPagoReady}
-            />
-            <Label 
-              htmlFor="gateway-mercadopago" 
-              className={`flex-1 ${!mercadoPagoReady ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-6 w-24 flex items-center">
-                  <svg viewBox="0 0 100 32" className="h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="100" height="32" rx="4" fill="#009ee3"/>
-                    <text x="50" y="21" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">Mercado Pago</text>
-                  </svg>
-                </div>
-                <span className="font-medium">Mercado Pago</span>
-              </div>
-            </Label>
-            <div className="flex items-center gap-2">
-              {mercadoPagoReady ? (
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  <Check className="h-3 w-3 mr-1" />
-                  Configurado
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Não configurado
-                </Badge>
-              )}
+          <button
+            type="button"
+            onClick={() => handleGatewaySelect('mercadopago')}
+            disabled={saving || !mercadoPagoReady}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 p-6 transition-all",
+              settings.active_payment_gateway === 'mercadopago' && mercadoPagoReady
+                ? "border-[#009ee3] bg-[#009ee3]/5 ring-2 ring-[#009ee3]/20"
+                : mercadoPagoReady
+                  ? "border-border hover:border-[#009ee3]/50 hover:bg-[#009ee3]/5 cursor-pointer"
+                  : "border-dashed border-muted-foreground/30 opacity-50 cursor-not-allowed"
+            )}
+          >
+            {/* Logo */}
+            <div className="h-10 flex items-center justify-center">
+              <svg viewBox="0 0 120 40" className="h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="120" height="40" rx="6" fill="#009ee3"/>
+                <text x="60" y="26" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Mercado Pago</text>
+              </svg>
             </div>
-          </div>
+            
+            {/* Status */}
+            {mercadoPagoReady ? (
+              <Badge variant="outline" className="text-green-600 border-green-600 gap-1">
+                <Check className="h-3 w-3" />
+                Configurado
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Não configurado
+              </Badge>
+            )}
+
+            {/* Active indicator */}
+            {settings.active_payment_gateway === 'mercadopago' && mercadoPagoReady && (
+              <div className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 rounded-full bg-[#009ee3] text-white">
+                <Check className="h-4 w-4" />
+              </div>
+            )}
+
+            {/* Text */}
+            <span className="text-xs text-muted-foreground text-center">
+              PIX e Cartão de Crédito
+            </span>
+          </button>
 
           {/* PicPay */}
-          <div className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
-            settings.active_payment_gateway === 'picpay' 
-              ? 'border-[#21c25e] bg-[#21c25e]/5' 
-              : 'border-border'
-          } ${!picPayReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-            <RadioGroupItem 
-              value="picpay" 
-              id="gateway-picpay" 
-              disabled={!picPayReady}
-            />
-            <Label 
-              htmlFor="gateway-picpay" 
-              className={`flex-1 ${!picPayReady ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-6 w-16 flex items-center">
-                  <svg viewBox="0 0 60 32" className="h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="60" height="32" rx="4" fill="#21c25e"/>
-                    <text x="30" y="21" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">PicPay</text>
-                  </svg>
-                </div>
-                <span className="font-medium">PicPay</span>
-              </div>
-            </Label>
-            <div className="flex items-center gap-2">
-              {picPayReady ? (
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  <Check className="h-3 w-3 mr-1" />
-                  Configurado
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Não configurado
-                </Badge>
-              )}
+          <button
+            type="button"
+            onClick={() => handleGatewaySelect('picpay')}
+            disabled={saving || !picPayReady}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 p-6 transition-all",
+              settings.active_payment_gateway === 'picpay' && picPayReady
+                ? "border-[#21c25e] bg-[#21c25e]/5 ring-2 ring-[#21c25e]/20"
+                : picPayReady
+                  ? "border-border hover:border-[#21c25e]/50 hover:bg-[#21c25e]/5 cursor-pointer"
+                  : "border-dashed border-muted-foreground/30 opacity-50 cursor-not-allowed"
+            )}
+          >
+            {/* Logo */}
+            <div className="h-10 flex items-center justify-center">
+              <svg viewBox="0 0 80 40" className="h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="80" height="40" rx="6" fill="#21c25e"/>
+                <text x="40" y="26" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">PicPay</text>
+              </svg>
             </div>
-          </div>
-        </RadioGroup>
+            
+            {/* Status */}
+            {picPayReady ? (
+              <Badge variant="outline" className="text-green-600 border-green-600 gap-1">
+                <Check className="h-3 w-3" />
+                Configurado
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Não configurado
+              </Badge>
+            )}
 
-        {settings.active_payment_gateway && (
-          <p className="text-sm text-muted-foreground mt-4">
-            Os clientes verão a opção de pagar com PIX via{' '}
-            <strong>{settings.active_payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'PicPay'}</strong>{' '}
-            no checkout do cardápio.
+            {/* Active indicator */}
+            {settings.active_payment_gateway === 'picpay' && picPayReady && (
+              <div className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 rounded-full bg-[#21c25e] text-white">
+                <Check className="h-4 w-4" />
+              </div>
+            )}
+
+            {/* Text */}
+            <span className="text-xs text-muted-foreground text-center">
+              PIX e Cartão de Crédito
+            </span>
+          </button>
+        </div>
+
+        {/* Info text */}
+        {hasAnyGateway && settings.active_payment_gateway && (
+          <p className="text-sm text-center text-muted-foreground mt-4 pt-4 border-t">
+            Gateway ativo: <strong className={settings.active_payment_gateway === 'mercadopago' ? 'text-[#009ee3]' : 'text-[#21c25e]'}>
+              {settings.active_payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'PicPay'}
+            </strong>
           </p>
+        )}
+
+        {saving && (
+          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Salvando...
+          </div>
         )}
       </CardContent>
     </Card>
