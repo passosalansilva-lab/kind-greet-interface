@@ -11,7 +11,10 @@ const PICPAY_OAUTH_BASE = "https://checkout-api.picpay.com";
 const PICPAY_PAYMENTLINK_BASE = "https://api.picpay.com/v1/paymentlink";
 
 interface DirectRefundRequest {
-  order_id: string;
+  /** Pode ser o ID do pedido (orders.id) */
+  order_id?: string;
+  /** ID do pagamento (Mercado Pago / PicPay). Usado como fallback quando o order_id não for encontrado */
+  payment_id?: string;
   reason: string;
 }
 
@@ -208,53 +211,117 @@ serve(async (req) => {
       );
     }
 
-    const { order_id, reason }: DirectRefundRequest = await req.json();
+    const { order_id, payment_id, reason }: DirectRefundRequest = await req.json();
 
-    console.log("[direct-refund] Request:", { order_id, reason, user_id: user.id });
+    console.log("[direct-refund] Request:", {
+      order_id,
+      payment_id,
+      reason,
+      user_id: user.id,
+    });
 
-    if (!order_id || !reason?.trim()) {
+    const origin = req.headers.get("origin") ?? "";
+    const debug = req.headers.get("x-debug") === "1" || origin.includes("lovableproject.com");
+
+    const normalizedOrderId = order_id?.trim() || "";
+    const normalizedPaymentId = payment_id?.trim() || "";
+
+    if ((!normalizedOrderId && !normalizedPaymentId) || !reason?.trim()) {
       return new Response(
-        JSON.stringify({ error: "order_id e reason são obrigatórios" }),
+        JSON.stringify({ error: "order_id (ou payment_id) e reason são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get order (service role bypasses RLS, but we still enforce ownership checks below)
-    // Note: The orders table uses stripe_payment_intent_id for all payment IDs (MP, PicPay, etc.)
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select(
-        "id, company_id, total, payment_status, payment_method, stripe_payment_intent_id, customer_name"
-      )
-      .eq("id", order_id)
-      .maybeSingle();
+    // Carrega o pedido por order_id; se não encontrar, tenta pelo payment_id (evita confusão de IDs)
+    const selectOrderFields =
+      "id, company_id, total, payment_status, payment_method, stripe_payment_intent_id, customer_name";
 
-    if (orderError) {
-      console.error("[direct-refund] Error loading order:", { order_id, orderError });
+    let order:
+      | {
+          id: string;
+          company_id: string;
+          total: number;
+          payment_status: string;
+          payment_method: string | null;
+          stripe_payment_intent_id: string | null;
+          customer_name: string | null;
+        }
+      | null = null;
 
-      const origin = req.headers.get("origin") ?? "";
-      const debug = req.headers.get("x-debug") === "1" || origin.includes("lovableproject.com");
+    if (normalizedOrderId) {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(selectOrderFields)
+        .eq("id", normalizedOrderId)
+        .maybeSingle();
 
-      return new Response(
-        JSON.stringify({
-          error: "Erro ao buscar pedido",
-          ...(debug
-            ? {
-                debug: {
-                  code: (orderError as any).code,
-                  message: (orderError as any).message,
-                  details: (orderError as any).details,
-                  hint: (orderError as any).hint,
-                },
-              }
-            : {}),
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (error) {
+        console.error("[direct-refund] Error loading order by id:", {
+          order_id: normalizedOrderId,
+          error,
+        });
+
+        return new Response(
+          JSON.stringify({
+            error: "Erro ao buscar pedido",
+            ...(debug
+              ? {
+                  debug: {
+                    code: (error as any).code,
+                    message: (error as any).message,
+                    details: (error as any).details,
+                    hint: (error as any).hint,
+                  },
+                }
+              : {}),
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      order = (data as any) ?? null;
+    }
+
+    if (!order && normalizedPaymentId) {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(selectOrderFields)
+        .eq("stripe_payment_intent_id", normalizedPaymentId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[direct-refund] Error loading order by payment_id:", {
+          payment_id: normalizedPaymentId,
+          error,
+        });
+
+        return new Response(
+          JSON.stringify({
+            error: "Erro ao buscar pedido",
+            ...(debug
+              ? {
+                  debug: {
+                    code: (error as any).code,
+                    message: (error as any).message,
+                    details: (error as any).details,
+                    hint: (error as any).hint,
+                  },
+                }
+              : {}),
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      order = (data as any) ?? null;
     }
 
     if (!order) {
-      console.warn("[direct-refund] Order not found:", { order_id });
+      console.warn("[direct-refund] Order not found:", {
+        order_id: normalizedOrderId || undefined,
+        payment_id: normalizedPaymentId || undefined,
+      });
       return new Response(
         JSON.stringify({ error: "Pedido não encontrado" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -306,8 +373,8 @@ serve(async (req) => {
       );
     }
 
-    // Determine payment provider and ID (stored in stripe_payment_intent_id for all providers)
-    const paymentId = order.stripe_payment_intent_id;
+    // Determina provedor e ID do pagamento (Mercado Pago / PicPay)
+    const paymentId = normalizedPaymentId || order.stripe_payment_intent_id;
     if (!paymentId) {
       return new Response(
         JSON.stringify({ error: "ID do pagamento não encontrado" }),
@@ -315,9 +382,18 @@ serve(async (req) => {
       );
     }
 
-    const isPicPay = paymentId.startsWith('picpay_');
+    const isPicPay = paymentId.startsWith("picpay_");
+    const isMercadoPago = paymentId.startsWith("mp_") || /^\d+$/.test(paymentId);
 
-    // Get payment credentials
+    if (!isPicPay && !isMercadoPago) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Provedor de pagamento não suportado para estorno automático (somente Mercado Pago e PicPay).",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const { data: paymentSettings, error: settingsError } = await supabase
       .from("company_payment_settings")
       .select("mercadopago_access_token, picpay_client_id, picpay_client_secret")

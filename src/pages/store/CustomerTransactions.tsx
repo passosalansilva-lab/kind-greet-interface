@@ -388,6 +388,7 @@ export default function CustomerTransactions() {
       const { data, error } = await supabase.functions.invoke('direct-refund', {
         body: {
           order_id: selectedTransaction.id,
+          payment_id: selectedTransaction.stripe_payment_intent_id,
           reason: refundReason.trim(),
         },
       });
