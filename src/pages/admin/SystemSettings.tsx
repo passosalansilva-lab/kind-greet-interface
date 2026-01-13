@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, LayoutDashboard, Globe, UtensilsCrossed, Clock, Save, Play } from "lucide-react";
+import { Loader2, Upload, Trash2, LayoutDashboard, Globe, UtensilsCrossed, Clock, Save, Play, CreditCard } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 interface LogoLocation {
   key: string;
@@ -15,6 +17,28 @@ interface LogoLocation {
   description: string;
   icon: React.ReactNode;
 }
+
+interface PaymentIntegration {
+  key: string;
+  name: string;
+  color: string;
+  description: string;
+}
+
+const PAYMENT_INTEGRATIONS: PaymentIntegration[] = [
+  {
+    key: "integration_mercadopago_enabled",
+    name: "Mercado Pago",
+    color: "#009ee3",
+    description: "PIX e Cartão de Crédito via Mercado Pago",
+  },
+  {
+    key: "integration_picpay_enabled",
+    name: "PicPay",
+    color: "#21c25e",
+    description: "Pagamentos via PicPay",
+  },
+];
 
 const LOGO_LOCATIONS: LogoLocation[] = [
   {
@@ -49,6 +73,10 @@ export default function SystemSettings() {
   const [inactivityDays, setInactivityDays] = useState<number>(15);
   const [savingInactivity, setSavingInactivity] = useState(false);
   const [runningCheck, setRunningCheck] = useState(false);
+  
+  // Payment integrations
+  const [paymentIntegrations, setPaymentIntegrations] = useState<Record<string, boolean>>({});
+  const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
 
   useEffect(() => {
     checkAccess();
@@ -80,7 +108,11 @@ export default function SystemSettings() {
 
   const loadSettings = async () => {
     setLoading(true);
-    const keys = [...LOGO_LOCATIONS.map(l => l.key), "inactivity_suspension_days"];
+    const keys = [
+      ...LOGO_LOCATIONS.map(l => l.key), 
+      ...PAYMENT_INTEGRATIONS.map(p => p.key),
+      "inactivity_suspension_days"
+    ];
     
     const { data, error } = await supabase
       .from("system_settings")
@@ -92,14 +124,25 @@ export default function SystemSettings() {
       console.error(error);
     } else {
       const logoMap: Record<string, string | null> = {};
+      const integrationMap: Record<string, boolean> = {};
+      
+      // Default: Mercado Pago habilitado, PicPay desabilitado
+      PAYMENT_INTEGRATIONS.forEach(p => {
+        integrationMap[p.key] = p.key === "integration_mercadopago_enabled";
+      });
+      
       data?.forEach(item => {
         if (item.key === "inactivity_suspension_days") {
           setInactivityDays(parseInt(item.value || "15", 10));
+        } else if (item.key.startsWith("integration_")) {
+          integrationMap[item.key] = item.value === "true";
         } else {
           logoMap[item.key] = item.value;
         }
       });
+      
       setLogos(logoMap);
+      setPaymentIntegrations(integrationMap);
     }
     setLoading(false);
   };
@@ -229,6 +272,30 @@ export default function SystemSettings() {
     }
   };
 
+  const handleToggleIntegration = async (integrationKey: string, enabled: boolean) => {
+    setSavingIntegration(integrationKey);
+    try {
+      const { error } = await supabase
+        .from("system_settings")
+        .upsert(
+          { key: integrationKey, value: enabled.toString() },
+          { onConflict: "key" }
+        );
+
+      if (error) throw error;
+      
+      setPaymentIntegrations(prev => ({ ...prev, [integrationKey]: enabled }));
+      
+      const integration = PAYMENT_INTEGRATIONS.find(p => p.key === integrationKey);
+      toast.success(`${integration?.name} ${enabled ? "habilitado" : "desabilitado"} com sucesso!`);
+    } catch (error) {
+      console.error("Error toggling integration:", error);
+      toast.error("Erro ao atualizar integração");
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
   if (loading || !hasAccess) {
     return (
       <DashboardLayout>
@@ -315,6 +382,72 @@ export default function SystemSettings() {
               <span className="text-xs text-muted-foreground">
                 Verifica e suspende empresas inativas imediatamente
               </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Integrations Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Integrações de Pagamento</CardTitle>
+                <CardDescription>
+                  Habilite ou desabilite integrações de pagamento disponíveis para as lojas
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {PAYMENT_INTEGRATIONS.map((integration) => {
+              const isEnabled = paymentIntegrations[integration.key] ?? false;
+              const isSaving = savingIntegration === integration.key;
+              
+              return (
+                <div
+                  key={integration.key}
+                  className="flex items-center justify-between p-4 rounded-lg border"
+                  style={{ borderColor: isEnabled ? integration.color : undefined }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                      style={{ backgroundColor: integration.color }}
+                    >
+                      {integration.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{integration.name}</span>
+                        <Badge variant={isEnabled ? "default" : "secondary"}>
+                          {isEnabled ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {integration.description}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Switch
+                      checked={isEnabled}
+                      onCheckedChange={(checked) => handleToggleIntegration(integration.key, checked)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Integrações desabilitadas não aparecerão como opção de configuração para as lojas. Útil para manutenção ou instabilidades.
+              </p>
             </div>
           </CardContent>
         </Card>
