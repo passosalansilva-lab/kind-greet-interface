@@ -142,8 +142,9 @@ export default function StoreSettings() {
   const initialLoadDone = useRef(false);
 
   // Atualiza a aba quando o parâmetro de URL muda
+  // Atualiza a aba quando o parâmetro de URL muda
   useEffect(() => {
-    if (tabParam && ['geral', 'entrega', 'pagamentos', 'horarios', 'aparencia', 'fiscal', 'impressao', 'notificacoes'].includes(tabParam)) {
+    if (tabParam && ['geral', 'endereco', 'entrega', 'pagamento', 'horarios', 'aparencia', 'fiscal'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
