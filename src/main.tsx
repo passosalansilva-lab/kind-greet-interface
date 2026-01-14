@@ -9,6 +9,9 @@ setupSupabaseFunctionAuthGuard();
 
 // Register service worker for PWA and push notifications
 if ("serviceWorker" in navigator) {
+  // Flag to prevent infinite reload loops
+  let isReloading = false;
+  
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
@@ -18,8 +21,10 @@ if ("serviceWorker" in navigator) {
         // Força checagem de atualização ao carregar
         registration.update().catch(() => undefined);
 
-        // Quando uma nova versão assumir o controle, recarrega a página
+        // Quando uma nova versão assumir o controle, recarrega a página (apenas uma vez)
         navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (isReloading) return;
+          isReloading = true;
           window.location.reload();
         });
 
