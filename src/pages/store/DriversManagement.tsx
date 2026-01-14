@@ -26,6 +26,7 @@ import {
   ExternalLink,
   QrCode,
   RefreshCw,
+  MessageCircle,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -623,7 +624,7 @@ export default function DriversManagement() {
     }
   };
 
-  const copyDriverAccessLink = async (driver: Driver) => {
+  const getDriverAccessLink = async (driver: Driver): Promise<string | null> => {
     let token = driver.access_token;
     
     if (!token) {
@@ -633,11 +634,56 @@ export default function DriversManagement() {
     }
     
     if (token) {
-      const accessLink = `${window.location.origin}/driver/access/${token}`;
+      return `${window.location.origin}/driver/access/${token}`;
+    }
+    return null;
+  };
+
+  const copyDriverAccessLink = async (driver: Driver) => {
+    const accessLink = await getDriverAccessLink(driver);
+    
+    if (accessLink) {
       navigator.clipboard.writeText(accessLink);
       toast({ 
         title: 'Link único copiado!', 
         description: `Envie para ${driver.driver_name || 'o entregador'} acessar diretamente.` 
+      });
+    }
+  };
+
+  const sendDriverLinkViaWhatsApp = async (driver: Driver) => {
+    const phone = driver.driver_phone || driver.profile?.phone;
+    
+    if (!phone) {
+      toast({ 
+        title: 'Telefone não cadastrado', 
+        description: 'Adicione um telefone para este entregador primeiro.',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    const accessLink = await getDriverAccessLink(driver);
+    
+    if (accessLink) {
+      // Remove non-numeric characters and ensure it starts with country code
+      let cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = cleanPhone.substring(1);
+      }
+      if (!cleanPhone.startsWith('55')) {
+        cleanPhone = '55' + cleanPhone;
+      }
+      
+      const driverName = driver.driver_name || driver.profile?.full_name || 'Entregador';
+      const message = `Olá ${driverName}! 🛵\n\nAcesse seu painel de entregas da *${companyName}* pelo link abaixo:\n\n${accessLink}\n\nEste link é exclusivo para você. Guarde-o para acessar sempre que precisar!`;
+      
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast({ 
+        title: 'Abrindo WhatsApp...', 
+        description: `Enviando link de acesso para ${driverName}` 
       });
     }
   };
@@ -947,6 +993,10 @@ export default function DriversManagement() {
                               <DropdownMenuItem onClick={() => copyDriverAccessLink(driver)}>
                                 <Link className="h-4 w-4 mr-2" />
                                 Copiar Link de Acesso
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => sendDriverLinkViaWhatsApp(driver)}>
+                                <MessageCircle className="h-4 w-4 mr-2" />
+                                Enviar Link via WhatsApp
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openQrCodeDialog(driver)}>
                                 <QrCode className="h-4 w-4 mr-2" />
