@@ -9,34 +9,26 @@ setupSupabaseFunctionAuthGuard();
 
 // Register service worker for PWA and push notifications
 if ("serviceWorker" in navigator) {
-  // Flag to prevent infinite reload loops
-  let isReloading = false;
-  
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => {
         console.log("Service Worker registered:", registration.scope);
 
-        // Força checagem de atualização ao carregar
-        registration.update().catch(() => undefined);
+        // Check for updates periodically (not on every load to avoid loops)
+        setTimeout(() => {
+          registration.update().catch(() => undefined);
+        }, 60000); // Check after 1 minute
 
-        // Quando uma nova versão assumir o controle, recarrega a página (apenas uma vez)
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (isReloading) return;
-          isReloading = true;
-          window.location.reload();
-        });
-
-        // Quando achar update, manda o SW novo ativar imediatamente
+        // Only reload if user explicitly confirms OR if there's an update waiting
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
           if (!newWorker) return;
 
           newWorker.addEventListener("statechange", () => {
             if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              // nova versão pronta -> ativa sem esperar
-              registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+              // New version ready - activate on next natural page load
+              console.log("New service worker version available");
             }
           });
         });
