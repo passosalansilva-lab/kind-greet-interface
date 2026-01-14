@@ -105,6 +105,7 @@ export default function AdminFeatures() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingFeatureId, setTogglingFeatureId] = useState<string | null>(null);
+  const [featureSearch, setFeatureSearch] = useState('');
   
   // Feature dialog state
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false);
@@ -513,8 +514,15 @@ export default function AdminFeatures() {
     );
   }
 
+  // Filtrar features por pesquisa
+  const filteredFeatures = features.filter(f =>
+    f.name.toLowerCase().includes(featureSearch.toLowerCase()) ||
+    f.key.toLowerCase().includes(featureSearch.toLowerCase()) ||
+    (f.description && f.description.toLowerCase().includes(featureSearch.toLowerCase()))
+  );
+
   // Agrupar features por categoria
-  const groupedFeatures = features.reduce((acc, feature) => {
+  const groupedFeatures = filteredFeatures.reduce((acc, feature) => {
     const category = feature.category || 'general';
     if (!acc[category]) acc[category] = [];
     acc[category].push(feature);
@@ -641,6 +649,33 @@ export default function AdminFeatures() {
           </TabsList>
 
           <TabsContent value="features" className="space-y-6">
+            {/* Campo de pesquisa */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar funcionalidades..."
+                value={featureSearch}
+                onChange={e => setFeatureSearch(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {featureSearch && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setFeatureSearch('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {Object.entries(groupedFeatures).length === 0 && featureSearch && (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma funcionalidade encontrada para "{featureSearch}"
+              </div>
+            )}
+
             {Object.entries(groupedFeatures).map(([category, categoryFeatures]) => (
               <div key={category}>
                 <h3 className="text-lg font-semibold mb-3 capitalize">
@@ -652,59 +687,65 @@ export default function AdminFeatures() {
                     return (
                       <Card key={feature.id} className={!feature.is_active ? 'opacity-50' : ''}>
                         <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                {getIconComponent(feature.icon)}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <CardTitle className="text-base truncate">{feature.name}</CardTitle>
-                                  {featurePrices.length > 0 && (
-                                    <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 gap-1 shrink-0 text-xs">
-                                      <Crown className="h-3 w-3" />
-                                      Premium
-                                    </Badge>
-                                  )}
-                                </div>
-                                <code className="text-xs text-muted-foreground">{feature.key}</code>
-                              </div>
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                              {getIconComponent(feature.icon)}
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <CardTitle className="text-base truncate">{feature.name}</CardTitle>
+                                {featurePrices.length > 0 && (
+                                  <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 gap-1 shrink-0 text-xs">
+                                    <Crown className="h-3 w-3" />
+                                    Premium
+                                  </Badge>
+                                )}
+                              </div>
+                              <code className="text-xs text-muted-foreground">{feature.key}</code>
+                            </div>
+                          </div>
+                          
+                          {/* Ações em linha separada */}
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t">
                             <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-2 pr-1">
-                                <Switch
-                                  checked={feature.is_active}
-                                  onCheckedChange={(v) => toggleFeatureActive(feature, v)}
-                                  disabled={togglingFeatureId === feature.id}
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  {feature.is_active ? 'Ativa' : 'Inativa'}
-                                </span>
-                              </div>
+                              <Switch
+                                checked={feature.is_active}
+                                onCheckedChange={(v) => toggleFeatureActive(feature, v)}
+                                disabled={togglingFeatureId === feature.id}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {feature.is_active ? 'Ativa' : 'Inativa'}
+                              </span>
+                            </div>
 
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openPricingDialog(feature)}
-                                >
-                                  <DollarSign className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditFeature(feature)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteFeature(feature)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openPricingDialog(feature)}
+                                title="Definir preço"
+                              >
+                                <DollarSign className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openEditFeature(feature)}
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDeleteFeature(feature)}
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         </CardHeader>
