@@ -146,6 +146,38 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
   
   const getCustomerStorageKey = (companyId: string | null | undefined) =>
     companyId ? `menupro_customer_${companyId}` : 'menupro_customer';
+
+  // Helper to update localStorage with the correct customer_id after order
+  const updateStoredCustomerId = useCallback((newCustomerId: string, customerData?: { name?: string; email?: string; phone?: string }) => {
+    if (!companyId || !newCustomerId) return;
+    
+    try {
+      const key = getCustomerStorageKey(companyId);
+      const existing = localStorage.getItem(key);
+      let updatedData: any = { id: newCustomerId };
+      
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+          updatedData = { ...parsed, id: newCustomerId };
+        } catch {
+          // If parse fails, just use the new data
+        }
+      }
+      
+      // Merge with any provided customer data
+      if (customerData) {
+        if (customerData.name) updatedData.name = customerData.name;
+        if (customerData.email) updatedData.email = customerData.email;
+        if (customerData.phone) updatedData.phone = customerData.phone;
+      }
+      
+      localStorage.setItem(key, JSON.stringify(updatedData));
+      console.log('[CheckoutPage] Updated stored customer ID:', newCustomerId);
+    } catch (e) {
+      console.error('Error updating stored customer:', e);
+    }
+  }, [companyId]);
   
   // Customer state (not auth - just lookup)
   const [loggedCustomer, setLoggedCustomer] = useState<CustomerData | null>(() => {
@@ -210,12 +242,14 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
     total: number;
     companyName: string;
     companySlug: string;
+    customerId?: string | null;
   } | null>(null);
 
   // Card Payment state
   const [cardPaymentData, setCardPaymentData] = useState<{
     addressId?: string;
     formData: CheckoutFormData;
+    customerId?: string | null;
   } | null>(null);
 
   // PicPay Payment state
@@ -229,6 +263,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
     total: number;
     companyName: string;
     companySlug: string;
+    customerId?: string | null;
   } | null>(null);
 
   const {
@@ -1194,6 +1229,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
                 total: picPayData.total,
                 companyName: picPayData.companyName,
                 companySlug: picPayData.companySlug,
+                customerId: customerId,
               });
               setLoading(false);
               return;
@@ -1228,6 +1264,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
                 total: pixData.total,
                 companyName: pixData.companyName,
                 companySlug: pixData.companySlug,
+                customerId: customerId,
               });
               setLoading(false);
               return;
@@ -1265,6 +1302,7 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         setCardPaymentData({
           addressId,
           formData: data,
+          customerId: customerId,
         });
         setLoading(false);
         return;
@@ -1475,6 +1513,15 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       // Calculate tickets earned for lottery display
       const ticketsEarned = await calculateTicketsEarned(subtotal);
       setTicketsEarnedInOrder(ticketsEarned);
+      
+      // Update localStorage with the correct customer ID to ensure lottery tickets are visible
+      if (customerId) {
+        updateStoredCustomerId(customerId, {
+          name: data.customerName,
+          email: data.customerEmail,
+          phone: data.customerPhone,
+        });
+      }
       
       setOrderComplete(true);
       clearCart();
@@ -1705,9 +1752,10 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         pixData={pixPaymentData}
         companyId={companyId}
         onSuccess={async (newOrderId) => {
+          const paymentCustomerId = pixPaymentData.customerId;
           setPixPaymentData(null);
           setOrderId(newOrderId);
-          setOrderCustomerId(loggedCustomer?.id || null);
+          setOrderCustomerId(paymentCustomerId || loggedCustomer?.id || null);
           setOrderPaymentMethod('online');
           setOrderSummary({ subtotal, discountAmount, deliveryFee, total });
           setOrderItems([...items]);
@@ -1715,6 +1763,11 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setTicketsEarnedInOrder(ticketsEarned);
           setOrderComplete(true);
           clearCart();
+          
+          // Update localStorage with the correct customer ID
+          if (paymentCustomerId) {
+            updateStoredCustomerId(paymentCustomerId);
+          }
         }}
         onCancel={() => setPixPaymentData(null)}
         onExpired={() => {
@@ -1736,9 +1789,10 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         paymentData={picPayPaymentData}
         companyId={companyId}
         onSuccess={async (newOrderId) => {
+          const paymentCustomerId = picPayPaymentData.customerId;
           setPicPayPaymentData(null);
           setOrderId(newOrderId);
-          setOrderCustomerId(loggedCustomer?.id || null);
+          setOrderCustomerId(paymentCustomerId || loggedCustomer?.id || null);
           setOrderPaymentMethod('online');
           setOrderSummary({ subtotal, discountAmount, deliveryFee, total });
           setOrderItems([...items]);
@@ -1746,6 +1800,11 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setTicketsEarnedInOrder(ticketsEarned);
           setOrderComplete(true);
           clearCart();
+          
+          // Update localStorage with the correct customer ID
+          if (paymentCustomerId) {
+            updateStoredCustomerId(paymentCustomerId);
+          }
         }}
         onCancel={() => setPicPayPaymentData(null)}
         onExpired={() => {
@@ -1786,9 +1845,10 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
         discountAmount={discountAmount}
         notes={cardPaymentData.formData.notes}
         onSuccess={async (newOrderId) => {
+          const paymentCustomerId = cardPaymentData.customerId;
           setCardPaymentData(null);
           setOrderId(newOrderId);
-          setOrderCustomerId(loggedCustomer?.id || null);
+          setOrderCustomerId(paymentCustomerId || loggedCustomer?.id || null);
           setOrderPaymentMethod('online');
           setOrderSummary({ subtotal, discountAmount, deliveryFee, total });
           setOrderItems([...items]);
@@ -1796,6 +1856,11 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setTicketsEarnedInOrder(ticketsEarned);
           setOrderComplete(true);
           clearCart();
+          
+          // Update localStorage with the correct customer ID
+          if (paymentCustomerId) {
+            updateStoredCustomerId(paymentCustomerId);
+          }
         }}
         onCancel={() => setCardPaymentData(null)}
       />
