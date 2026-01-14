@@ -248,3 +248,33 @@ verify_jwt = false
 
 [functions.assign-driver]
 verify_jwt = false
+
+[functions.send-company-suspension-email]
+verify_jwt = false
+
+[functions.send-driver-welcome]
+verify_jwt = false
+
+[functions.refund-mercadopago-payment]
+verify_jwt = false
+
+[functions.consume-customer-credits]
+verify_jwt = false
+
+[functions.get-customer-credits]
+verify_jwt = false
+
+[functions.get-system-logs]
+verify_jwt = false
+
+[functions.export-storage]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
