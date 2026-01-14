@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -88,7 +88,8 @@ interface Plan {
 }
 
 export default function Index() {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const { setTheme } = useTheme();
   const { logoUrl } = useSystemLogo("landing");
   const [stats, setStats] = useState<LandingStats | null>(null);
@@ -97,6 +98,19 @@ export default function Index() {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [currentFoodIndex, setCurrentFoodIndex] = useState(0);
   const [open, setOpen] = useState(false);
+
+  // Redirect logged-in users to dashboard automatically
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (user) {
+      if (hasRole('delivery_driver') && !hasRole('store_owner') && !hasRole('super_admin')) {
+        navigate('/driver', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, authLoading, hasRole, navigate]);
   
   const foodImages = [
     { src: foodPizza, alt: 'Pizza', label: 'Pizzarias' },
