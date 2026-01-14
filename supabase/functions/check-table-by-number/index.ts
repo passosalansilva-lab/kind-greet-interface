@@ -31,16 +31,20 @@ Deno.serve(async (req) => {
     const hasCustomerData = customerName && customerPhone
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey =
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
+    // IMPORTANT: this function must use the Service Role key to bypass RLS for public QR flows.
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase env vars', { hasUrl: !!supabaseUrl, hasKey: !!supabaseKey })
+      console.error('Missing Supabase env vars', {
+        hasUrl: !!supabaseUrl,
+        hasServiceRoleKey: !!supabaseKey,
+      })
       return new Response(
         JSON.stringify({
           hasActiveSession: false,
           error: 'server_misconfigured',
-          message: 'Servidor temporariamente indisponível. Tente novamente em instantes.',
+          message:
+            'Servidor temporariamente indisponível (configuração). Tente novamente em instantes.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -150,18 +154,34 @@ Deno.serve(async (req) => {
         .select('id, session_token, opened_at, customer_name')
         .single()
       
-      if (createError) {
-        console.error('Error creating session:', createError)
-        // Return a user-friendly error (200 status to avoid invoke error handling)
-        return new Response(
-          JSON.stringify({ 
-            hasActiveSession: false,
-            error: 'session_creation_failed',
-            message: 'Erro ao abrir a mesa. Por favor, tente novamente.'
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
+       if (createError) {
+         console.error('Error creating session:', createError)
+
+         const ce = createError as unknown as {
+           code?: string
+           message?: string
+           details?: string
+           hint?: string
+         }
+
+         const debug = {
+           code: ce.code,
+           message: ce.message,
+           details: ce.details,
+           hint: ce.hint,
+         }
+
+         // Return a user-friendly error (200 status to avoid invoke error handling)
+         return new Response(
+           JSON.stringify({
+             hasActiveSession: false,
+             error: 'session_creation_failed',
+             message: 'Erro ao abrir a mesa. Por favor, tente novamente.',
+             debug,
+           }),
+           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+         )
+       }
       
       console.log('New session created for table', tableNumber, 'with token:', sessionToken)
       return new Response(
