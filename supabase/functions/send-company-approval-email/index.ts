@@ -38,7 +38,7 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </tr>
 <tr>
 <td style="padding:36px 32px 40px 32px;">
-<p style="margin:0 0 16px; font-size:16px; color:#111827;">Olá 👋</p>
+<p style="margin:0 0 16px; font-size:16px; color:#111827;">Olá, {{ownerName}} 👋</p>
 <p style="margin:0 0 24px; font-size:15px; color:#374151; line-height:1.6;">
 Sua empresa <strong>{{companyName}}</strong> foi aprovada e já está ativa no <strong>CardpOn</strong> 🚀  
 Agora seus clientes podem acessar seu cardápio online, escolher os produtos e fazer pedidos direto pelo celular.
@@ -122,10 +122,19 @@ serve(async (req) => {
     const loginUrl = `${platformUrl}/auth`;
     const dashboardUrl = `${platformUrl}/dashboard`;
 
+    const ownerName =
+      user.user.user_metadata?.full_name ||
+      user.user.user_metadata?.name ||
+      company.name;
+
     // Buscar template do banco
     const template = await getEmailTemplate("company-approval");
     
     const variables = {
+      ownerName,
+      owner_name: ownerName,
+      ownerEmail: user.user.email,
+      owner_email: user.user.email,
       companyName: company.name,
       company_name: company.name,
       companySlug: company.slug,
