@@ -149,7 +149,7 @@ export default function OrderTracking() {
           .single();
         
         if (data?.slug) {
-          navigate(`/${data.slug}`);
+          navigate(`/menu/${data.slug}`);
         } else {
           navigate(-1);
         }
