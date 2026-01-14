@@ -1081,31 +1081,18 @@ export function CartDrawer({
       <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
         {/* Header com gradiente */}
         <div className="relative bg-gradient-to-r from-primary to-primary/80 px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="font-bold text-lg text-primary-foreground">Seu Pedido</h2>
-                {items.length > 0 && (
-                  <p className="text-xs text-primary-foreground/80">
-                    {items.length} {items.length === 1 ? 'item' : 'itens'} • R$ {subtotal.toFixed(2)}
-                  </p>
-                )}
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5 text-primary-foreground" />
             </div>
-            {items.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-foreground/90 hover:text-primary-foreground hover:bg-white/10"
-                onClick={clearCart}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Limpar
-              </Button>
-            )}
+            <div>
+              <h2 className="font-bold text-lg text-primary-foreground">Seu Pedido</h2>
+              {items.length > 0 && (
+                <p className="text-xs text-primary-foreground/80">
+                  {items.length} {items.length === 1 ? 'item' : 'itens'} • R$ {subtotal.toFixed(2)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1234,6 +1221,18 @@ export function CartDrawer({
                   </p>
                 </div>
               )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
+                  onClick={clearCart}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Limpar tudo
+                </Button>
+              </div>
 
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
