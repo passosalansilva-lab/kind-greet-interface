@@ -1119,14 +1119,14 @@ export function CartDrawer({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {items.map((item, index) => (
                 <div
                   key={item.id}
-                  className="relative flex gap-3 p-3 rounded-2xl border border-border/70 bg-card shadow-sm hover:shadow-md transition-shadow"
+                  className="relative flex gap-2.5 p-2.5 rounded-xl border border-border/70 bg-card shadow-sm"
                 >
                   {/* Número do item */}
-                  <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-md">
+                  <div className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">
                     {index + 1}
                   </div>
                   
@@ -1134,55 +1134,56 @@ export function CartDrawer({
                     <img
                       src={item.imageUrl}
                       alt={item.productName}
-                      className="w-18 h-18 rounded-xl object-cover flex-shrink-0 shadow-sm"
+                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-18 h-18 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center flex-shrink-0">
-                      <Package className="h-8 w-8 text-primary/40" />
+                    <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center flex-shrink-0">
+                      <Package className="h-6 w-6 text-primary/40" />
                     </div>
                   )}
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-semibold text-sm leading-tight">{item.productName}</h4>
+                    <div className="flex items-start justify-between gap-1">
+                      <h4 className="font-medium text-sm leading-tight line-clamp-2">{item.productName}</h4>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0 -mt-1 -mr-1"
+                        className="h-5 w-5 text-muted-foreground hover:text-destructive flex-shrink-0"
                         onClick={() => removeItem(item.id)}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-3 w-3" />
                       </Button>
                     </div>
                     
                     {item.options.length > 0 && (
                       <GroupedOptionsDisplay 
                         options={item.options} 
-                        className="mt-1"
+                        className="mt-0.5"
+                        variant="compact"
                       />
                     )}
                     
                     {item.notes && (
-                      <p className="text-xs text-muted-foreground italic mt-1 line-clamp-1">
+                      <p className="text-[10px] text-muted-foreground italic mt-0.5 line-clamp-1">
                         💬 {item.notes}
                       </p>
                     )}
                     
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-1 bg-muted/50 rounded-full p-0.5">
+                    <div className="flex items-center justify-between mt-1.5">
+                      <div className="flex items-center gap-0.5 bg-muted/50 rounded-full p-0.5">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                          className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="text-sm w-7 text-center font-bold">{item.quantity}</span>
+                        <span className="text-xs w-5 text-center font-bold">{item.quantity}</span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary"
+                          className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
