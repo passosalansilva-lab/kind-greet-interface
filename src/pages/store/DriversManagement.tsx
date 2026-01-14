@@ -118,6 +118,7 @@ interface Order {
   status: OrderStatus;
   total: number;
   delivery_driver_id: string | null;
+  queue_position?: number | null;
   customer_addresses?: {
     street: string;
     number: string;
@@ -240,24 +241,24 @@ export default function DriversManagement() {
       setDrivers(driversWithProfiles);
 
       // Load orders ready for delivery, awaiting driver, or out for delivery
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          id, created_at, customer_name, customer_phone, status, total, delivery_driver_id,
-          customer_addresses:delivery_address_id (
-            street,
-            number,
-            neighborhood,
-            city,
-            state,
-            complement,
-            reference,
-            zip_code
-          )
-        `)
-        .eq('company_id', company.id)
-        .in('status', ['ready', 'awaiting_driver', 'out_for_delivery'])
-        .order('created_at', { ascending: true }); // FIFO - oldest first
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select(`
+            id, created_at, customer_name, customer_phone, status, total, delivery_driver_id, queue_position,
+            customer_addresses:delivery_address_id (
+              street,
+              number,
+              neighborhood,
+              city,
+              state,
+              complement,
+              reference,
+              zip_code
+            )
+          `)
+          .eq('company_id', company.id)
+          .in('status', ['ready', 'awaiting_driver', 'queued', 'out_for_delivery'])
+          .order('created_at', { ascending: true }); // FIFO - oldest first
 
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
@@ -892,9 +893,9 @@ export default function DriversManagement() {
                   </div>
                   <Button
                     onClick={async () => {
-                      const activeDriver = drivers.find(d => d.is_active && d.is_available);
+                      const activeDriver = drivers.find(d => d.is_active);
                       if (!activeDriver) {
-                        toast({ title: 'Nenhum entregador disponível', variant: 'destructive' });
+                        toast({ title: 'Nenhum entregador ativo', variant: 'destructive' });
                         return;
                       }
                       setSaving(true);
@@ -909,7 +910,7 @@ export default function DriversManagement() {
                         setSaving(false);
                       }
                     }}
-                    disabled={saving || !drivers.find(d => d.is_active && d.is_available)}
+                    disabled={saving || !drivers.find(d => d.is_active)}
                   >
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Atribuir Todos

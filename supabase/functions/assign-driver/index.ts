@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -69,8 +70,36 @@ serve(async (req) => {
       );
     }
 
-    const driverIsBusy =
-      driver.driver_status === "in_delivery" || !driver.is_available;
+    // Mark driver as "busy" if it is already unavailable or already in delivery.
+    // IMPORTANT: availability can be updated concurrently, so we also "claim" it atomically below.
+    let driverIsBusy = driver.driver_status === "in_delivery" || !driver.is_available;
+    let driverWasClaimed = false;
+
+    // If driver appears available, try to claim it (atomic) to avoid multiple orders becoming
+    // 'awaiting_driver' at the same time when assigning many orders quickly.
+    if (!driverIsBusy) {
+      const { data: claimedRows, error: claimError } = await supabase
+        .from("delivery_drivers")
+        .update({
+          driver_status: "pending_acceptance",
+          is_available: false,
+        })
+        .eq("id", driverId)
+        .eq("company_id", companyId)
+        .eq("is_available", true)
+        .select("id");
+
+      if (claimError) {
+        console.error("assign-driver claim error:", claimError);
+      }
+
+      if (claimedRows && claimedRows.length > 0) {
+        driverWasClaimed = true;
+        driverIsBusy = false;
+      } else {
+        driverIsBusy = true;
+      }
+    }
 
     /* ===============================
        CARREGAR PEDIDO
@@ -155,8 +184,9 @@ serve(async (req) => {
 
     /* ===============================
        BLOQUEAR NOVO ENTREGADOR
+       (apenas se ainda não foi “claimado” acima)
     =============================== */
-    if (!driverIsBusy) {
+    if (!driverIsBusy && !driverWasClaimed) {
       await supabase
         .from("delivery_drivers")
         .update({
