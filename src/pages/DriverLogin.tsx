@@ -114,6 +114,15 @@ export default function DriverLogin() {
         },
       });
 
+      // Debug (sem vazar token)
+      console.log('[DriverLogin] driver-direct-login result', {
+        ok: !invokeError,
+        keys: loginData ? Object.keys(loginData) : null,
+        hasSession: !!loginData?.session,
+        hasMagicLink: !!loginData?.magicLink,
+        hasError: !!loginData?.error,
+      });
+
       // Erro real de rede ou crash da função (500, timeout, etc.)
       if (invokeError) {
         toast.error('Falha ao logar', {
@@ -139,7 +148,16 @@ export default function DriverLogin() {
         return;
       }
 
-      // Sucesso
+      // Sucesso (novo fluxo): a função retorna um magicLink com redirect e o browser cria a sessão
+      if (loginData?.magicLink) {
+        toast.success('Entrando...', {
+          description: 'Aguarde um instante, estamos validando seu acesso.',
+        });
+        window.location.assign(loginData.magicLink);
+        return;
+      }
+
+      // Sucesso (legado)
       if (loginData?.session) {
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: loginData.session.access_token,
@@ -159,11 +177,12 @@ export default function DriverLogin() {
         });
 
         navigate('/driver', { replace: true });
-      } else {
-        toast.error('Erro inesperado', {
-          description: 'Resposta inválida do servidor.',
-        });
+        return;
       }
+
+      toast.error('Erro inesperado', {
+        description: 'Resposta inválida do servidor.',
+      });
     } catch (error) {
       console.error('Erro inesperado no login:', error);
       toast.error('Erro inesperado', {

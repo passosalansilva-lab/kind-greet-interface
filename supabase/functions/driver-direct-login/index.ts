@@ -173,12 +173,18 @@ serve(async (req) => {
       logStep("Auth user created and linked", { userId });
     }
 
-    // === LOGIN DIRETO E SEGURO (MÉTODO OFICIAL) ===
+    // === LOGIN DIRETO ===
+    // A função retorna um magicLink (com redirect) que, ao abrir no browser, cria a sessão do usuário.
+    // O frontend deve apenas redirecionar para este link.
     logStep("Generating magic link for passwordless login");
 
+    const origin = req.headers.get("origin") || "";
+    const redirectTo = origin ? `${origin}/driver` : undefined;
+
     const { data: signInData, error: signInError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
+      type: "magiclink",
       email: normalizedEmail,
+      options: redirectTo ? { redirectTo } : undefined,
     });
 
     if (signInError) {
@@ -189,28 +195,22 @@ serve(async (req) => {
       );
     }
 
-    // Use the generated token to create a session
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.getUserById(signInData.user.id);
-    
-    if (sessionError || !sessionData.user) {
-      logStep("Failed to get user for session");
+    const magicLink = signInData?.properties?.action_link;
+
+    if (!magicLink) {
+      logStep("generateLink missing action_link");
       return new Response(
-        JSON.stringify({ error: "Falha ao criar sessão de login" }),
+        JSON.stringify({ error: "Falha ao criar link de login" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Generate a session token manually
-    const { data: tokenData, error: tokenError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: normalizedEmail,
-    });
-
-    logStep("Login successful", { userId: signInData.user?.id });
+    logStep("Login link generated", { userId: signInData.user?.id, redirectTo });
 
     return new Response(
       JSON.stringify({
-        magicLink: signInData.properties.action_link,
+        magicLink,
+        redirectTo: redirectTo || null,
         user: signInData.user,
         companyId: driver.company_id,
         driverName: driver.driver_name,
