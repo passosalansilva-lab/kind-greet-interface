@@ -1,11 +1,11 @@
 // Service Worker for Push Notifications
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `cardpon-cache-${CACHE_VERSION}`;
 
 self.addEventListener('install', (event) => {
   console.log('Service Worker installed');
-  // Force the waiting service worker to become active
-  self.skipWaiting();
+  // Do NOT call skipWaiting() here - let it be controlled via message
+  // This prevents the infinite reload loop
 });
 
 self.addEventListener('activate', (event) => {
@@ -29,7 +29,7 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
-      // Take control of all clients immediately
+      // Take control of all clients - but don't force reload from here
       return clients.claim();
     })
   );
