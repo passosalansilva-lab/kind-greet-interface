@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronUp,
   Receipt,
+  Route,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { DriverPaymentsModal } from '@/components/drivers/DriverPaymentsModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import MultiDeliveryMode from '@/components/drivers/MultiDeliveryMode';
 
 interface DriverFinancials {
   pendingEarnings: number;
@@ -142,6 +144,7 @@ export default function DriverDashboard() {
   const [showMapForOrder, setShowMapForOrder] = useState<string | null>(null);
   const [financials, setFinancials] = useState<DriverFinancials>({ pendingEarnings: 0, totalPaid: 0, deliveryCount: 0 });
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [isMultiDeliveryActive, setIsMultiDeliveryActive] = useState(false);
   
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1204,6 +1207,38 @@ export default function DriverDashboard() {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Multi-Delivery Mode */}
+        {driver?.id && orders.length > 0 && (
+          <MultiDeliveryMode
+            orders={orders.map(o => ({
+              ...o,
+              company: { name: o.company.name, address: o.company.address }
+            }))}
+            driverId={driver.id}
+            onStartMultiDelivery={async (orderIds) => {
+              // Update all selected orders to out_for_delivery
+              for (const orderId of orderIds) {
+                await supabase
+                  .from('orders')
+                  .update({ status: 'out_for_delivery' })
+                  .eq('id', orderId);
+              }
+              // Update driver status
+              await supabase
+                .from('delivery_drivers')
+                .update({ driver_status: 'in_delivery' })
+                .eq('id', driver.id);
+              
+              setIsMultiDeliveryActive(true);
+              setOrders(prev => prev.map(o => 
+                orderIds.includes(o.id) ? { ...o, status: 'out_for_delivery' } : o
+              ));
+            }}
+            onCompleteDelivery={completeDelivery}
+            updatingOrder={updatingOrder}
+          />
         )}
 
         {/* Orders */}
