@@ -850,35 +850,6 @@ export default function DriversManagement() {
           </Button>
         </div>
 
-        {/* Driver Access Link */}
-        {companySlug && (
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="py-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Link className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Link de Acesso para Entregadores</p>
-                    <p className="text-sm text-muted-foreground">
-                      Compartilhe este link para seus entregadores acessarem o painel exclusivo da sua loja
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="px-3 py-1.5 bg-muted rounded-lg text-sm font-mono hidden lg:block max-w-xs truncate">
-                    {window.location.origin}/driver/login/{companySlug}
-                  </code>
-                  <Button onClick={copyDriverLink} variant="outline" size="sm" className="gap-2">
-                    <Copy className="h-4 w-4" />
-                    Copiar Link
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
