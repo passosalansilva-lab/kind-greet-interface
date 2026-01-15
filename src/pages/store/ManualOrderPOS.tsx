@@ -386,17 +386,18 @@ export default function ManualOrderPOS() {
       return;
     }
 
-    if (!customer.name.trim()) {
-      toast({ title: 'Informe o nome do cliente', variant: 'destructive' });
-      return;
-    }
-
-    if (!customer.phone.trim()) {
-      toast({ title: 'Informe o telefone do cliente', variant: 'destructive' });
-      return;
-    }
-
+    // Only require customer data for delivery
     if (deliveryType === 'delivery') {
+      if (!customer.name.trim()) {
+        toast({ title: 'Informe o nome do cliente', variant: 'destructive' });
+        return;
+      }
+
+      if (!customer.phone.trim()) {
+        toast({ title: 'Informe o telefone do cliente', variant: 'destructive' });
+        return;
+      }
+
       if (!address.street.trim() || !address.number.trim() || !address.neighborhood.trim() || !address.city.trim() || !address.state.trim()) {
         toast({ title: 'Preencha o endereço completo', variant: 'destructive' });
         return;
@@ -405,28 +406,28 @@ export default function ManualOrderPOS() {
 
     setSubmitting(true);
     try {
-      // Create or update customer (via backend function to bypass RLS)
+      // Create or update customer only if data is provided
       let customerId: string | null = null;
 
-      const cleanPhone = customer.phone.replace(/\D/g, '');
+      const hasCustomerData = customer.name.trim() && customer.phone.trim();
+      
+      if (hasCustomerData) {
+        const cleanPhone = customer.phone.replace(/\D/g, '');
 
-      const { data: upsertResult, error: upsertError } = await supabase.functions.invoke(
-        'pos-upsert-customer',
-        {
-          body: {
-            companyId,
-            name: customer.name,
-            phone: cleanPhone,
-            email: customer.email || null,
-          },
-        }
-      );
+        const { data: upsertResult, error: upsertError } = await supabase.functions.invoke(
+          'pos-upsert-customer',
+          {
+            body: {
+              companyId,
+              name: customer.name,
+              phone: cleanPhone,
+              email: customer.email || null,
+            },
+          }
+        );
 
-      if (upsertError) throw upsertError;
-
-      customerId = (upsertResult as any)?.customerId || null;
-      if (!customerId) {
-        throw new Error('Não foi possível criar o cliente');
+        if (upsertError) throw upsertError;
+        customerId = (upsertResult as any)?.customerId || null;
       }
 
       // Create address if delivery
@@ -458,8 +459,8 @@ export default function ManualOrderPOS() {
         .insert({
           company_id: companyId,
           customer_id: customerId,
-          customer_name: customer.name,
-          customer_phone: customer.phone.replace(/\D/g, ''),
+          customer_name: customer.name.trim() || null,
+          customer_phone: customer.phone.trim() ? customer.phone.replace(/\D/g, '') : null,
           customer_email: customer.email || null,
           delivery_address_id: addressId,
           table_session_id: deliveryType === 'table' ? tableSessionId : null,
