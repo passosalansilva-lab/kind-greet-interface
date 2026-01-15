@@ -731,46 +731,7 @@ export default function ManualOrderPOS() {
 
                 <Separator />
 
-                {/* Customer data (for delivery and pickup) */}
-                {(deliveryType === 'delivery' || deliveryType === 'pickup') && (
-                  <div>
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Dados do Cliente
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Nome *</Label>
-                        <Input
-                          placeholder="Nome do cliente"
-                          value={customer.name}
-                          onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Telefone *</Label>
-                        <Input
-                          placeholder="(00) 00000-0000"
-                          value={customer.phone}
-                          onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">E-mail (opcional)</Label>
-                        <Input
-                          type="email"
-                          placeholder="email@exemplo.com"
-                          value={customer.email}
-                          onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(deliveryType === 'delivery' || deliveryType === 'pickup') && <Separator />}
-
-                {/* Delivery type */}
+                {/* Delivery type - FIRST */}
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
@@ -819,154 +780,200 @@ export default function ManualOrderPOS() {
                       <span className="text-sm font-medium">Entrega</span>
                     </button>
                   </div>
+                </div>
 
-                  {/* Table selector */}
-                  {deliveryType === 'table' && (
-                    <div className="mt-4 space-y-3">
-                      {tableNumber ? (
-                        <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
-                          <div className="flex items-center gap-2">
-                            <UtensilsCrossed className="h-4 w-4 text-primary" />
-                            <span className="font-medium">Mesa {tableNumber}</span>
-                          </div>
+                {/* Customer data (for delivery and pickup) - AFTER delivery type */}
+                {(deliveryType === 'delivery' || deliveryType === 'pickup') && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Dados do Cliente
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Nome *</Label>
+                          <Input
+                            placeholder="Nome do cliente"
+                            value={customer.name}
+                            onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Telefone *</Label>
+                          <Input
+                            placeholder="(00) 00000-0000"
+                            value={customer.phone}
+                            onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">E-mail (opcional)</Label>
+                          <Input
+                            type="email"
+                            placeholder="email@exemplo.com"
+                            value={customer.email}
+                            onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Table selector */}
+                {deliveryType === 'table' && (
+                  <div className="mt-4 space-y-3">
+                    {tableNumber ? (
+                      <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2">
+                          <UtensilsCrossed className="h-4 w-4 text-primary" />
+                          <span className="font-medium">Mesa {tableNumber}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowTableSelector(true)}
+                        >
+                          Alterar
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setShowTableSelector(true)}
+                      >
+                        <UtensilsCrossed className="h-4 w-4 mr-2" />
+                        Selecionar Mesa
+                      </Button>
+                    )}
+
+                    {showTableSelector && (
+                      <div className="border rounded-lg p-3 bg-background space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Escolha uma mesa</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowTableSelector(true)}
+                            onClick={() => setShowTableSelector(false)}
                           >
-                            Alterar
+                            ✕
                           </Button>
                         </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => setShowTableSelector(true)}
-                        >
-                          <UtensilsCrossed className="h-4 w-4 mr-2" />
-                          Selecionar Mesa
-                        </Button>
-                      )}
-
-                      {showTableSelector && (
-                        <div className="border rounded-lg p-3 bg-background space-y-2">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">Escolha uma mesa</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowTableSelector(false)}
-                            >
-                              ✕
-                            </Button>
+                        {availableTables.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Nenhuma mesa cadastrada
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                            {availableTables.map((table) => (
+                              <button
+                                key={table.id}
+                                type="button"
+                                onClick={() => handleSelectTable(table.id, table.table_number)}
+                                className={cn(
+                                  'p-2 text-center border rounded-lg transition-colors text-sm',
+                                  table.status === 'occupied' 
+                                    ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300' 
+                                    : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 hover:border-primary'
+                                )}
+                              >
+                                <span className="font-bold">{table.table_number}</span>
+                                {table.name && <span className="block text-xs text-muted-foreground truncate">{table.name}</span>}
+                              </button>
+                            ))}
                           </div>
-                          {availableTables.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              Nenhuma mesa cadastrada
-                            </p>
-                          ) : (
-                            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                              {availableTables.map((table) => (
-                                <button
-                                  key={table.id}
-                                  type="button"
-                                  onClick={() => handleSelectTable(table.id, table.table_number)}
-                                  className={cn(
-                                    'p-2 text-center border rounded-lg transition-colors text-sm',
-                                    table.status === 'occupied' 
-                                      ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300' 
-                                      : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 hover:border-primary'
-                                  )}
-                                >
-                                  <span className="font-bold">{table.table_number}</span>
-                                  {table.name && <span className="block text-xs text-muted-foreground truncate">{table.name}</span>}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  {/* Address fields */}
-                  {deliveryType === 'delivery' && (
-                    <div className="mt-4 space-y-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-2">
-                          <Label className="text-xs">Rua *</Label>
-                          <Input
-                            placeholder="Rua / Avenida"
-                            value={address.street}
-                            onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Nº *</Label>
-                          <Input
-                            placeholder="Nº"
-                            value={address.number}
-                            onChange={(e) => setAddress({ ...address, number: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Complemento</Label>
+                <Separator />
+
+                {/* Address fields */}
+                {deliveryType === 'delivery' && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Endereço de Entrega
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <Label className="text-xs">Rua *</Label>
                         <Input
-                          placeholder="Apto, bloco..."
-                          value={address.complement}
-                          onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                          placeholder="Rua / Avenida"
+                          value={address.street}
+                          onChange={(e) => setAddress({ ...address, street: e.target.value })}
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Bairro *</Label>
+                        <Label className="text-xs">Nº *</Label>
                         <Input
-                          placeholder="Bairro"
-                          value={address.neighborhood}
-                          onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Cidade *</Label>
-                          <Input
-                            placeholder="Cidade"
-                            value={address.city}
-                            onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Estado *</Label>
-                          <Input
-                            placeholder="UF"
-                            maxLength={2}
-                            value={address.state}
-                            onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">CEP</Label>
-                        <Input
-                          placeholder="00000-000"
-                          value={address.zip_code}
-                          onChange={(e) => setAddress({ ...address, zip_code: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Referência</Label>
-                        <Input
-                          placeholder="Próximo a..."
-                          value={address.reference}
-                          onChange={(e) => setAddress({ ...address, reference: e.target.value })}
+                          placeholder="Nº"
+                          value={address.number}
+                          onChange={(e) => setAddress({ ...address, number: e.target.value })}
                         />
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <Label className="text-xs">Complemento</Label>
+                      <Input
+                        placeholder="Apto, bloco..."
+                        value={address.complement}
+                        onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Bairro *</Label>
+                      <Input
+                        placeholder="Bairro"
+                        value={address.neighborhood}
+                        onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Cidade *</Label>
+                        <Input
+                          placeholder="Cidade"
+                          value={address.city}
+                          onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Estado *</Label>
+                        <Input
+                          placeholder="UF"
+                          maxLength={2}
+                          value={address.state}
+                          onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">CEP</Label>
+                      <Input
+                        placeholder="00000-000"
+                        value={address.zip_code}
+                        onChange={(e) => setAddress({ ...address, zip_code: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Referência</Label>
+                      <Input
+                        placeholder="Próximo a..."
+                        value={address.reference}
+                        onChange={(e) => setAddress({ ...address, reference: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <Separator />
 
