@@ -116,6 +116,12 @@ interface CartItem {
   calculatedPrice: number;
 }
 
+interface GeneratedComanda {
+  id: string;
+  number: number;
+  used_at: string | null;
+}
+
 export default function ComandasManagement() {
   const navigate = useNavigate();
   const { user, staffCompany } = useAuth();
@@ -136,6 +142,8 @@ export default function ComandasManagement() {
   const [newComandaPhone, setNewComandaPhone] = useState('');
   const [isManualNumber, setIsManualNumber] = useState(false);
   const [creatingComanda, setCreatingComanda] = useState(false);
+  const [availableComandas, setAvailableComandas] = useState<GeneratedComanda[]>([]);
+  const [selectedGeneratedComanda, setSelectedGeneratedComanda] = useState<number | null>(null);
 
   // Add items
   const [showAddItems, setShowAddItems] = useState(false);
@@ -166,8 +174,16 @@ export default function ComandasManagement() {
     if (companyId) {
       loadComandas();
       loadProducts();
+      loadAvailableComandas();
     }
   }, [companyId]);
+
+  // Load available comandas when dialog opens
+  useEffect(() => {
+    if (showNewDialog && companyId) {
+      loadAvailableComandas();
+    }
+  }, [showNewDialog, companyId]);
 
   useEffect(() => {
     if (selectedComanda) {
@@ -297,14 +313,55 @@ export default function ComandasManagement() {
     }
   };
 
+  const loadAvailableComandas = async () => {
+    if (!companyId) return;
+
+    try {
+      // Get unused generated comandas
+      const { data: generated, error: genError } = await (supabase as any)
+        .from('generated_comandas')
+        .select('id, number, used_at')
+        .eq('company_id', companyId)
+        .is('used_at', null)
+        .order('number', { ascending: true });
+
+      if (genError) throw genError;
+
+      // Get today's open comandas to filter out
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: todaysComandas } = await (supabase as any)
+        .from('comandas')
+        .select('number')
+        .eq('company_id', companyId)
+        .gte('created_at', today.toISOString());
+
+      const usedNumbers = new Set((todaysComandas || []).map((c: any) => c.number));
+      
+      // Filter out numbers already in use today
+      const available = (generated || []).filter((g: any) => !usedNumbers.has(g.number));
+      
+      setAvailableComandas(available);
+    } catch (error: any) {
+      console.error('Error loading available comandas:', error);
+    }
+  };
+
   const handleCreateComanda = async () => {
     if (!companyId) return;
 
     setCreatingComanda(true);
     try {
       let number: number;
+      let generatedComandaId: string | null = null;
 
-      if (isManualNumber) {
+      if (selectedGeneratedComanda) {
+        // Use selected generated comanda
+        number = selectedGeneratedComanda;
+        const found = availableComandas.find(c => c.number === selectedGeneratedComanda);
+        if (found) generatedComandaId = found.id;
+      } else if (isManualNumber) {
         const parsed = parseInt(newComandaNumber, 10);
         if (isNaN(parsed) || parsed <= 0) {
           toast({ title: 'Número inválido', variant: 'destructive' });
@@ -326,7 +383,7 @@ export default function ComandasManagement() {
           number,
           customer_name: newComandaName || null,
           customer_phone: newComandaPhone || null,
-          is_manual_number: isManualNumber,
+          is_manual_number: isManualNumber || !!selectedGeneratedComanda,
         })
         .select()
         .single();
@@ -340,14 +397,27 @@ export default function ComandasManagement() {
         throw error;
       }
 
+      // Mark generated comanda as used
+      if (generatedComandaId) {
+        await (supabase as any)
+          .from('generated_comandas')
+          .update({ 
+            used_at: new Date().toISOString(),
+            comanda_id: newComanda.id 
+          })
+          .eq('id', generatedComandaId);
+      }
+
       toast({ title: `Comanda #${number} criada com sucesso` });
       setShowNewDialog(false);
       setNewComandaNumber('');
       setNewComandaName('');
       setNewComandaPhone('');
       setIsManualNumber(false);
+      setSelectedGeneratedComanda(null);
       setSelectedComanda(newComanda as Comanda);
       loadComandas();
+      loadAvailableComandas();
     } catch (error: any) {
       console.error('Error creating comanda:', error);
       toast({ title: 'Erro ao criar comanda', description: error.message, variant: 'destructive' });
@@ -964,21 +1034,93 @@ export default function ComandasManagement() {
       </div>
 
       {/* New Comanda Dialog */}
-      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent>
+      <Dialog open={showNewDialog} onOpenChange={(open) => {
+        setShowNewDialog(open);
+        if (!open) {
+          setSelectedGeneratedComanda(null);
+          setIsManualNumber(false);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Nova Comanda</DialogTitle>
             <DialogDescription>
-              Crie uma nova comanda para registrar os pedidos do cliente.
+              Selecione uma comanda impressa ou crie uma nova.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Available Comandas Section */}
+            {availableComandas.length > 0 && (
+              <div className="space-y-2">
+                <Label>Comandas Disponíveis</Label>
+                <ScrollArea className="h-32 rounded-md border p-2">
+                  <div className="flex flex-wrap gap-2">
+                    {availableComandas.map((gc) => (
+                      <Button
+                        key={gc.id}
+                        type="button"
+                        variant={selectedGeneratedComanda === gc.number ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-10 min-w-[60px]"
+                        onClick={() => {
+                          setSelectedGeneratedComanda(
+                            selectedGeneratedComanda === gc.number ? null : gc.number
+                          );
+                          setIsManualNumber(false);
+                          setNewComandaNumber('');
+                        }}
+                      >
+                        #{gc.number}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">
+                  {availableComandas.length} comanda(s) impressa(s) disponível(is)
+                </p>
+              </div>
+            )}
+
+            {availableComandas.length === 0 && (
+              <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
+                <FileText className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma comanda pré-impressa disponível</p>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => {
+                    setShowNewDialog(false);
+                    navigate('/dashboard/comandas/imprimir');
+                  }}
+                >
+                  Imprimir comandas em lote
+                </Button>
+              </div>
+            )}
+
+            {/* Divider if has available comandas */}
+            {availableComandas.length > 0 && (
+              <div className="relative">
+                <Separator />
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-2 text-xs text-muted-foreground">
+                  ou
+                </span>
+              </div>
+            )}
+
+            {/* Manual Number Toggle */}
             <div className="flex items-center justify-between">
-              <Label htmlFor="manual-number">Número manual</Label>
+              <Label htmlFor="manual-number">Digitar número manualmente</Label>
               <Switch
                 id="manual-number"
                 checked={isManualNumber}
-                onCheckedChange={setIsManualNumber}
+                onCheckedChange={(checked) => {
+                  setIsManualNumber(checked);
+                  if (checked) {
+                    setSelectedGeneratedComanda(null);
+                  }
+                }}
               />
             </div>
             {isManualNumber && (
@@ -998,6 +1140,10 @@ export default function ComandasManagement() {
                 </div>
               </div>
             )}
+
+            <Separator />
+
+            {/* Customer Info */}
             <div className="space-y-2">
               <Label htmlFor="customer-name">Nome do Cliente (opcional)</Label>
               <div className="relative">
@@ -1029,13 +1175,18 @@ export default function ComandasManagement() {
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateComanda} disabled={creatingComanda}>
+            <Button 
+              onClick={handleCreateComanda} 
+              disabled={creatingComanda || (isManualNumber && !newComandaNumber)}
+            >
               {creatingComanda ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              Criar Comanda
+              {selectedGeneratedComanda 
+                ? `Abrir Comanda #${selectedGeneratedComanda}` 
+                : 'Criar Comanda'}
             </Button>
           </DialogFooter>
         </DialogContent>

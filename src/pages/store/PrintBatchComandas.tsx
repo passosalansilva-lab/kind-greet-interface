@@ -4,40 +4,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Printer, FileText, ArrowLeft, Eye } from 'lucide-react';
+import { Printer, FileText, ArrowLeft, Eye, Loader2, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { generateComandaBarcode } from '@/components/comandas/PrintComanda';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import JsBarcode from 'jsbarcode';
 
 export default function PrintBatchComandas() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [startNumber, setStartNumber] = useState(1);
   const [endNumber, setEndNumber] = useState(50);
   const [companyName, setCompanyName] = useState('');
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [saving, setSaving] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // Fetch company name
+  // Fetch company info
   useEffect(() => {
-    const fetchCompanyName = async () => {
+    const fetchCompanyInfo = async () => {
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: company } = await supabase
             .from('companies')
-            .select('name')
+            .select('id, name')
             .eq('owner_id', user.id)
             .single();
           if (company) {
             setCompanyName(company.name);
+            setCompanyId(company.id);
           }
         }
       } catch (error) {
         console.error('Error fetching company:', error);
       }
     };
-    fetchCompanyName();
+    fetchCompanyInfo();
   }, []);
 
   const getOrCreateIframe = useCallback(() => {
@@ -217,7 +222,53 @@ export default function PrintBatchComandas() {
     </style>
   `;
 
-  const handlePrint = () => {
+  // Save generated comandas to database
+  const handleSaveGeneratedComandas = async () => {
+    if (!companyId) {
+      toast({ title: 'Empresa não encontrada', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const comandasToInsert = [];
+      for (let i = startNumber; i <= endNumber; i++) {
+        comandasToInsert.push({
+          company_id: companyId,
+          number: i,
+        });
+      }
+
+      // Use upsert to avoid duplicates
+      const { error } = await (supabase as any)
+        .from('generated_comandas')
+        .upsert(comandasToInsert, { 
+          onConflict: 'company_id,number',
+          ignoreDuplicates: true 
+        });
+
+      if (error) throw error;
+
+      toast({ 
+        title: 'Comandas registradas!', 
+        description: `${endNumber - startNumber + 1} comandas foram salvas e estarão disponíveis para uso.` 
+      });
+    } catch (error: any) {
+      console.error('Error saving generated comandas:', error);
+      toast({ 
+        title: 'Erro ao salvar comandas', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    // First save the comandas to database
+    await handleSaveGeneratedComandas();
+
     const content = generatePrintContent();
     const iframe = getOrCreateIframe();
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -319,9 +370,26 @@ export default function PrintBatchComandas() {
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button onClick={handlePrint} className="flex-1 gap-2">
-                  <Printer className="h-4 w-4" />
-                  Imprimir Comandas
+                <Button onClick={handlePrint} className="flex-1 gap-2" disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Printer className="h-4 w-4" />
+                  )}
+                  Imprimir e Registrar
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleSaveGeneratedComandas}
+                  className="gap-2"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Só Registrar
                 </Button>
                 <Button 
                   variant="outline" 
