@@ -62,6 +62,7 @@ import { Switch } from '@/components/ui/switch';
 import { POSProductModal, SelectedOption } from '@/components/pos/POSProductModal';
 import { PrintComanda } from '@/components/comandas/PrintComanda';
 import { BarcodeScanner } from '@/components/comandas/BarcodeScanner';
+import { CloseComandaDialog } from '@/components/comandas/CloseComandaDialog';
 
 interface Comanda {
   id: string;
@@ -404,19 +405,33 @@ export default function ComandasManagement() {
     }
   };
 
-  const handleCloseComanda = async () => {
+  const handleCloseComanda = async (
+    paymentMethod: 'dinheiro' | 'cartao' | 'pix',
+    amountReceived: number,
+    changeAmount: number
+  ) => {
     if (!selectedComanda) return;
 
     setClosingComanda(true);
     try {
       const { error } = await (supabase as any)
         .from('comandas')
-        .update({ status: 'closed', closed_at: new Date().toISOString() })
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          payment_method: paymentMethod,
+          amount_received: amountReceived,
+          change_amount: changeAmount,
+        })
         .eq('id', selectedComanda.id);
 
       if (error) throw error;
 
-      toast({ title: `Comanda #${selectedComanda.number} fechada` });
+      const methodLabel = paymentMethod === 'dinheiro' ? 'Dinheiro' : paymentMethod === 'cartao' ? 'Cartão' : 'PIX';
+      toast({ 
+        title: `Comanda #${selectedComanda.number} fechada`,
+        description: `Pagamento: ${methodLabel}${changeAmount > 0 ? ` - Troco: R$ ${changeAmount.toFixed(2).replace('.', ',')}` : ''}`
+      });
       setShowCloseDialog(false);
       setSelectedComanda(null);
       loadComandas();
@@ -1153,31 +1168,14 @@ export default function ComandasManagement() {
       )}
 
       {/* Close Comanda Dialog */}
-      <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Fechar Comanda #{selectedComanda?.number}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O total da comanda é{' '}
-              <span className="font-bold text-primary">
-                {formatCurrency(selectedComanda?.total || 0)}
-              </span>
-              . Após fechar, não será possível adicionar mais itens.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCloseComanda} disabled={closingComanda}>
-              {closingComanda ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Fechar Comanda
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CloseComandaDialog
+        open={showCloseDialog}
+        onOpenChange={setShowCloseDialog}
+        comandaNumber={selectedComanda?.number || 0}
+        total={selectedComanda?.total || 0}
+        onConfirm={handleCloseComanda}
+        isLoading={closingComanda}
+      />
 
       {/* Cancel Comanda Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
