@@ -9,10 +9,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { CurrencyInput, formatToBRL, parseFromBRL } from '@/components/ui/currency-input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
 type PaymentMethod = 'dinheiro' | 'cartao' | 'pix';
 
@@ -40,23 +39,22 @@ export function CloseComandaDialog({
   isLoading,
 }: CloseComandaDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('dinheiro');
-  const [amountReceived, setAmountReceived] = useState<string>('');
+  const [amountReceived, setAmountReceived] = useState<number>(0);
   const [changeAmount, setChangeAmount] = useState<number>(0);
 
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setPaymentMethod('dinheiro');
-      setAmountReceived('');
+      setAmountReceived(0);
       setChangeAmount(0);
     }
   }, [open]);
 
   // Calculate change when amount received changes (only for cash)
   useEffect(() => {
-    if (paymentMethod === 'dinheiro' && amountReceived) {
-      const received = parseFloat(parseFromBRL(amountReceived)) || 0;
-      const change = received - total;
+    if (paymentMethod === 'dinheiro' && amountReceived > 0) {
+      const change = amountReceived - total;
       setChangeAmount(change >= 0 ? change : 0);
     } else {
       setChangeAmount(0);
@@ -66,18 +64,22 @@ export function CloseComandaDialog({
   const formatCurrency = (value: number) =>
     value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  const handleAmountChange = (value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    setAmountReceived(numericValue);
+  };
+
   const handleConfirm = async () => {
-    const received = paymentMethod === 'dinheiro' 
-      ? parseFloat(parseFromBRL(amountReceived)) || total 
+    const received = paymentMethod === 'dinheiro' && amountReceived > 0
+      ? amountReceived 
       : total;
     await onConfirm(paymentMethod, received, changeAmount);
   };
 
   const isValidPayment = () => {
     if (paymentMethod !== 'dinheiro') return true;
-    if (!amountReceived) return true; // Allow closing without specifying amount
-    const received = parseFloat(parseFromBRL(amountReceived)) || 0;
-    return received >= total;
+    if (amountReceived === 0) return true; // Allow closing without specifying amount
+    return amountReceived >= total;
   };
 
   return (
@@ -130,8 +132,8 @@ export function CloseComandaDialog({
                 <Label htmlFor="amountReceived">Valor Recebido (opcional)</Label>
                 <CurrencyInput
                   id="amountReceived"
-                  value={amountReceived}
-                  onChange={setAmountReceived}
+                  value={amountReceived > 0 ? amountReceived : ''}
+                  onChange={handleAmountChange}
                   placeholder="0,00"
                   className="text-lg"
                   showPrefix
@@ -139,23 +141,25 @@ export function CloseComandaDialog({
               </div>
 
               {/* Change Display */}
-              {amountReceived && (
+              {amountReceived > 0 && (
                 <div
                   className={cn(
                     'rounded-lg p-4 text-center',
-                    changeAmount >= 0 ? 'bg-green-500/10' : 'bg-destructive/10'
+                    amountReceived >= total ? 'bg-green-500/10' : 'bg-destructive/10'
                   )}
                 >
                   <div className="text-sm text-muted-foreground">
-                    {changeAmount >= 0 ? 'Troco' : 'Valor Insuficiente'}
+                    {amountReceived >= total ? 'Troco' : 'Valor Insuficiente'}
                   </div>
                   <div
                     className={cn(
                       'text-2xl font-bold',
-                      changeAmount >= 0 ? 'text-green-600' : 'text-destructive'
+                      amountReceived >= total ? 'text-green-600' : 'text-destructive'
                     )}
                   >
-                    {changeAmount >= 0 ? formatCurrency(changeAmount) : formatCurrency(total - (parseFloat(parseFromBRL(amountReceived)) || 0))}
+                    {amountReceived >= total 
+                      ? formatCurrency(changeAmount) 
+                      : formatCurrency(total - amountReceived)}
                   </div>
                 </div>
               )}
