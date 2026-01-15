@@ -42,6 +42,7 @@ import {
   Rocket,
   RotateCcw,
   Mail,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,6 +113,7 @@ const navGroups: NavGroup[] = [
       { label: "Pedidos", href: "/dashboard/orders", icon: ClipboardList, roles: ["store_owner", "delivery_driver", "store_staff"], permission: "can_manage_orders", featureKey: "orders" },
       { label: "Cozinha (KDS)", href: "/dashboard/kds", icon: ChefHat, roles: ["store_owner", "store_staff"], permission: "can_manage_orders", featureKey: "kds" },
       { label: "Mesas", href: "/dashboard/tables", icon: UtensilsCrossed, roles: ["store_owner", "store_staff"], permission: "can_manage_orders", featureKey: "tables" },
+      { label: "Comandas", href: "/dashboard/comandas", icon: Receipt, roles: ["store_owner", "store_staff"], permission: "can_manage_orders", featureKey: "comandas" },
     ],
   },
   {

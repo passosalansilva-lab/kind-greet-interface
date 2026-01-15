@@ -35,6 +35,7 @@ import StoreSettings from "./pages/store/StoreSettings";
 import MenuManagement from "./pages/store/MenuManagement";
 import OrdersManagement from "./pages/store/OrdersManagement";
 import ManualOrderPOS from "./pages/store/ManualOrderPOS";
+import ComandasManagement from "./pages/store/ComandasManagement";
 import TablesManagement from "./pages/store/TablesManagement";
 import DriversManagement from "./pages/store/DriversManagement";
 import CouponsManagement from "./pages/store/CouponsManagement";
@@ -210,6 +211,14 @@ const App = () => (
                     <ProtectedFeatureRoute featureKey="tables">
                       <TablesManagement />
                     </ProtectedFeatureRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/comandas"
+                element={
+                  <ProtectedRoute>
+                    <ComandasManagement />
                   </ProtectedRoute>
                 }
               />
