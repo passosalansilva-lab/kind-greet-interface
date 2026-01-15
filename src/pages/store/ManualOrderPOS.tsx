@@ -461,8 +461,8 @@ export default function ManualOrderPOS() {
         .insert({
           company_id: companyId,
           customer_id: customerId,
-          customer_name: customer.name.trim() || null,
-          customer_phone: customer.phone.trim() ? customer.phone.replace(/\D/g, '') : null,
+          customer_name: customer.name.trim() || (deliveryType === 'table' ? `Mesa ${tableNumber || 'S/N'}` : 'Cliente Balcão'),
+          customer_phone: customer.phone.trim() ? customer.phone.replace(/\D/g, '') : '',
           customer_email: customer.email || null,
           delivery_address_id: addressId,
           table_session_id: deliveryType === 'table' ? tableSessionId : null,
