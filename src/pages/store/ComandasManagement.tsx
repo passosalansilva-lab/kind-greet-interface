@@ -687,6 +687,16 @@ export default function ComandasManagement() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.calculatedPrice * item.quantity, 0);
 
+  const selectedComandaItemsTotal = useMemo(
+    () => comandaItems.reduce((sum, item) => sum + (item.total_price || 0), 0),
+    [comandaItems]
+  );
+
+  const selectedComandaDisplayTotal = useMemo(() => {
+    if (!selectedComanda) return 0;
+    return Math.max(selectedComanda.total || 0, selectedComandaItemsTotal);
+  }, [selectedComanda, selectedComandaItemsTotal]);
+
   // Sound effects for scanner feedback
   const playSuccessSound = () => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -1177,7 +1187,7 @@ export default function ComandasManagement() {
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-medium">Total</span>
                     <span className="text-2xl font-bold text-primary">
-                      {formatCurrency(selectedComanda.total)}
+                      {formatCurrency(selectedComandaDisplayTotal)}
                     </span>
                   </div>
                   {selectedComanda.status === 'open' && (
@@ -1670,14 +1680,7 @@ export default function ComandasManagement() {
         open={showCloseDialog}
         onOpenChange={setShowCloseDialog}
         comandaNumber={selectedComanda?.number || 0}
-        total={
-          selectedComanda
-            ? Math.max(
-                selectedComanda.total || 0,
-                comandaItems.reduce((sum, item) => sum + (item.total_price || 0), 0)
-              )
-            : 0
-        }
+        total={selectedComandaDisplayTotal}
         onConfirm={handleCloseComanda}
         isLoading={closingComanda}
       />
