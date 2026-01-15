@@ -43,7 +43,7 @@ export function BarcodeScanner({ onScan, isLoading, className }: BarcodeScannerP
         requestAnimationFrame(() => inputRef.current?.focus());
       } else {
         // Keep the typed value visible so the user can fix it
-        setErrorMessage('Código inválido. Use CMD0001 ou apenas 0001.');
+        setErrorMessage('Digite apenas o número da comanda (ex: 1, 50, 100)');
         requestAnimationFrame(() => inputRef.current?.focus());
       }
     },
@@ -127,7 +127,7 @@ export function BarcodeScanner({ onScan, isLoading, className }: BarcodeScannerP
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Escaneie ou digite + Enter..."
+            placeholder="Nº da comanda (ex: 1, 50, 100)..."
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
