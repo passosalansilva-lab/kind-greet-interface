@@ -19,6 +19,7 @@ import {
   Printer,
   ShoppingBag,
   Calendar,
+  FileText,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -606,11 +607,20 @@ export default function ComandasManagement() {
                 Gerencie as comandas do estabelecimento
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <BarcodeScanner 
                 onScan={handleBarcodeScan} 
                 isLoading={scannerLoading}
               />
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/dashboard/comandas/print')}
+                className="gap-2"
+                title="Imprimir comandas em lote para gráfica"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Imprimir Lote</span>
+              </Button>
               <Button onClick={() => setShowNewDialog(true)} size="lg" className="gap-2">
                 <Plus className="h-5 w-5" />
                 Nova Comanda

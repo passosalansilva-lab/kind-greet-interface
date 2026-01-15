@@ -36,6 +36,7 @@ import MenuManagement from "./pages/store/MenuManagement";
 import OrdersManagement from "./pages/store/OrdersManagement";
 import ManualOrderPOS from "./pages/store/ManualOrderPOS";
 import ComandasManagement from "./pages/store/ComandasManagement";
+import PrintBatchComandas from "./pages/store/PrintBatchComandas";
 import TablesManagement from "./pages/store/TablesManagement";
 import DriversManagement from "./pages/store/DriversManagement";
 import CouponsManagement from "./pages/store/CouponsManagement";
@@ -219,6 +220,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ComandasManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/comandas/print"
+                element={
+                  <ProtectedRoute>
+                    <PrintBatchComandas />
                   </ProtectedRoute>
                 }
               />
