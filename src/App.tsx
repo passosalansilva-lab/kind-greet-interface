@@ -232,6 +232,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/dashboard/comandas/imprimir"
+                element={
+                  <ProtectedRoute>
+                    <PrintBatchComandas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dashboard/inventory"
                 element={
                   <ProtectedRoute>
