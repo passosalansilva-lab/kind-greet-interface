@@ -17,8 +17,6 @@ export function BarcodeScanner({ onScan, isLoading, className }: BarcodeScannerP
   const [inputValue, setInputValue] = useState('');
   const [lastScan, setLastScan] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastInputTimeRef = useRef<number>(0);
-  const bufferRef = useRef<string>('');
 
   // Auto-focus input when scanner is active
   useEffect(() => {
@@ -27,49 +25,38 @@ export function BarcodeScanner({ onScan, isLoading, className }: BarcodeScannerP
     }
   }, [isActive]);
 
-  const processBarcode = useCallback((value: string) => {
-    const trimmedValue = value.trim();
+  // Clear input and refocus after scan completes (when loading finishes)
+  useEffect(() => {
+    if (!isLoading && lastScan && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isLoading, lastScan]);
+
+  const handleSubmit = useCallback(() => {
+    const trimmedValue = inputValue.trim();
     if (!trimmedValue) return;
     
     const parsed = parseComandaBarcode(trimmedValue);
     if (parsed !== null) {
       setLastScan(trimmedValue);
+      setInputValue(''); // Clear immediately
       onScan(parsed);
-      // Clear input immediately after successful scan
-      setTimeout(() => {
-        setInputValue('');
-        bufferRef.current = '';
-        // Re-focus input for next scan
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 50);
     } else {
-      // Invalid barcode - clear and refocus
+      // Invalid barcode - just clear
       setInputValue('');
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
     }
-  }, [onScan]);
+  }, [inputValue, onScan]);
 
-  // Handle keyboard input
-  // Barcode scanners type very fast (< 50ms between chars) and end with Enter
+  // Handle keyboard input - only submit on Enter
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const now = Date.now();
-      const timeSinceLastInput = now - lastInputTimeRef.current;
-      
       if (e.key === 'Enter') {
         e.preventDefault();
-        // Use the input value (works for both scanner and manual typing)
-        processBarcode(inputValue);
-        return;
+        handleSubmit();
       }
-      
-      lastInputTimeRef.current = now;
     },
-    [inputValue, processBarcode]
+    [handleSubmit]
   );
 
   // Global keyboard listener for quick activation
@@ -135,7 +122,7 @@ export function BarcodeScanner({ onScan, isLoading, className }: BarcodeScannerP
       <Button
         variant="default"
         size="sm"
-        onClick={() => processBarcode(inputValue)}
+        onClick={handleSubmit}
         disabled={!inputValue.trim() || isLoading}
         className="shrink-0"
       >
