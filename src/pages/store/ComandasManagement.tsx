@@ -492,6 +492,10 @@ export default function ComandasManagement() {
 
     setClosingComanda(true);
     try {
+      // Calculate total from items to ensure it's saved correctly
+      const itemsTotal = comandaItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
+      const finalTotal = itemsTotal > 0 ? itemsTotal : selectedComanda.total;
+
       const { error } = await (supabase as any)
         .from('comandas')
         .update({
@@ -500,6 +504,7 @@ export default function ComandasManagement() {
           payment_method: paymentMethod,
           amount_received: amountReceived,
           change_amount: changeAmount,
+          total: finalTotal, // Save the total when closing
         })
         .eq('id', selectedComanda.id);
 
