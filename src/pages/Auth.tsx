@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,9 +32,15 @@ export default function Auth() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user, loading, hasRole, staffCompany } = useAuth();
+  const { setTheme } = useTheme();
   const { logoUrl } = useSystemLogo("landing");
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Force light theme on Auth page
+  useEffect(() => {
+    setTheme('light');
+  }, [setTheme]);
 
   // Auto-rotate carousel
   useEffect(() => {
