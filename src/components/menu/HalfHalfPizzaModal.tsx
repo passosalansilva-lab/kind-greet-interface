@@ -245,9 +245,11 @@ export function HalfHalfPizzaModal({
         .order("slices", { ascending: false });
 
       if (!catError && categorySizes && categorySizes.length > 0) {
+        // Ordenar por slices (maior primeiro) com fallback para 8 se null
+        const sortedSizes = [...categorySizes].sort((a, b) => (b.slices ?? 8) - (a.slices ?? 8));
         setSizePriceByProduct({});
-        setPizzaSizes(categorySizes);
-        setSelectedSize(categorySizes[0]);
+        setPizzaSizes(sortedSizes);
+        setSelectedSize(sortedSizes[0]);
         return;
       }
 
