@@ -1295,11 +1295,10 @@ export function ProductFormSheet({
             </div>
           )}
 
-          {/* Step 2: Pizza Settings (for pizza categories) */}
-          {step === 2 && isPizzaCategory && currentProductId && categoryId && (
+{/* Step 2: Pizza Settings (for pizza categories) */}
+          {step === 2 && isPizzaCategory && currentProductId && (
             <div className="py-4">
               <ProductPizzaSettings
-                categoryId={categoryId}
                 companyId={companyId}
                 productId={currentProductId}
                 allowHalfHalf={productForm.allow_half_half_flavor}
