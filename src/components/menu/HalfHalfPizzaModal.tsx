@@ -490,13 +490,34 @@ export function HalfHalfPizzaModal({
         ...crustFromNames,
       ];
       
+      // IDs dos grupos já usados para tamanho, massa e borda
+      const usedGroupIds = new Set([
+        ...sizeGroups.map(g => g.id),
+        ...doughGroups.map(g => g.id),
+        ...crust.map(g => g.id),
+      ]);
+
+      // Adicionais = grupos que não são tamanho, massa nem borda
+      // Inclui palavras-chave comuns E qualquer grupo restante
       const addons = mergedGroups.filter((g) => {
+        // Se já foi usado em outra categoria, ignorar
+        if (usedGroupIds.has(g.id)) return false;
+        
         const name = normalize(g.name);
-        return (
-          name.includes("adiciona") ||
-          name.includes("extra") ||
-          name.includes("complemento")
-        );
+        
+        // Excluir explicitamente tamanho, massa, borda (caso não tenha sido pego)
+        if (
+          name.includes("tamanho") ||
+          name.includes("massa") ||
+          name.includes("borda") ||
+          name.includes("crust") ||
+          name.includes("rechead")
+        ) {
+          return false;
+        }
+        
+        // Incluir todos os demais grupos (adicionais, extras, turbine, complementos, etc.)
+        return true;
       });
 
       setSizeOptions(sizeGroups);
