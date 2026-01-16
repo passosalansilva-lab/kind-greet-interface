@@ -59,6 +59,10 @@ interface CategorySettings {
   half_half_pricing_rule: string;
   half_half_discount_percentage: number;
   allow_repeated_flavors: boolean;
+  dough_max_selections: number;
+  dough_is_required: boolean;
+  crust_max_selections: number;
+  crust_is_required: boolean;
 }
 
 export function ProductPizzaSettings({
@@ -121,7 +125,20 @@ export function ProductPizzaSettings({
       setCrustFlavors(crustFlavorsRes.data || []);
       
       if (settingsRes.data) {
-        setCategorySettings(settingsRes.data);
+        const data = settingsRes.data as any;
+        setCategorySettings({
+          id: data.id,
+          category_id: data.category_id,
+          allow_half_half: data.allow_half_half ?? true,
+          max_flavors: data.max_flavors ?? 2,
+          half_half_pricing_rule: data.half_half_pricing_rule ?? 'average',
+          half_half_discount_percentage: data.half_half_discount_percentage ?? 0,
+          allow_repeated_flavors: data.allow_repeated_flavors ?? false,
+          dough_max_selections: data.dough_max_selections ?? 1,
+          dough_is_required: data.dough_is_required ?? true,
+          crust_max_selections: data.crust_max_selections ?? 1,
+          crust_is_required: data.crust_is_required ?? false,
+        });
       } else {
         setCategorySettings({
           category_id: categoryId,
@@ -130,6 +147,10 @@ export function ProductPizzaSettings({
           half_half_pricing_rule: 'average',
           half_half_discount_percentage: 0,
           allow_repeated_flavors: false,
+          dough_max_selections: 1,
+          dough_is_required: true,
+          crust_max_selections: 1,
+          crust_is_required: false,
         });
       }
     } catch (error: any) {
@@ -349,6 +370,10 @@ export function ProductPizzaSettings({
             half_half_pricing_rule: categorySettings.half_half_pricing_rule,
             half_half_discount_percentage: categorySettings.half_half_discount_percentage,
             allow_repeated_flavors: categorySettings.allow_repeated_flavors,
+            dough_max_selections: categorySettings.dough_max_selections,
+            dough_is_required: categorySettings.dough_is_required,
+            crust_max_selections: categorySettings.crust_max_selections,
+            crust_is_required: categorySettings.crust_is_required,
           })
           .eq('id', categorySettings.id);
         
@@ -363,12 +388,22 @@ export function ProductPizzaSettings({
             half_half_pricing_rule: categorySettings.half_half_pricing_rule,
             half_half_discount_percentage: categorySettings.half_half_discount_percentage,
             allow_repeated_flavors: categorySettings.allow_repeated_flavors,
+            dough_max_selections: categorySettings.dough_max_selections,
+            dough_is_required: categorySettings.dough_is_required,
+            crust_max_selections: categorySettings.crust_max_selections,
+            crust_is_required: categorySettings.crust_is_required,
           })
           .select()
           .single();
         
         if (error) throw error;
-        setCategorySettings(data);
+        setCategorySettings({
+          ...data,
+          dough_max_selections: (data as any).dough_max_selections ?? 1,
+          dough_is_required: (data as any).dough_is_required ?? true,
+          crust_max_selections: (data as any).crust_max_selections ?? 1,
+          crust_is_required: (data as any).crust_is_required ?? false,
+        });
       }
       
       toast({ title: 'Regras salvas' });
@@ -722,77 +757,155 @@ export function ProductPizzaSettings({
             <TabsContent value="rules" className="space-y-4 mt-3">
               {categorySettings && (
                 <>
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <p className="text-sm font-medium">Permitir meio a meio</p>
-                      <p className="text-xs text-muted-foreground">Clientes podem montar pizzas com múltiplos sabores</p>
-                    </div>
-                    <Switch
-                      checked={categorySettings.allow_half_half}
-                      onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_half_half: v } : null)}
-                    />
-                  </div>
-                  
-                  {categorySettings.allow_half_half && (
-                    <>
-                      <div className="space-y-2">
-                        <Label className="text-sm">Máximo de sabores</Label>
-                        <Select
-                          value={String(categorySettings.max_flavors)}
-                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, max_flavors: parseInt(v) } : null)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2">2 sabores</SelectItem>
-                            <SelectItem value="3">3 sabores</SelectItem>
-                            <SelectItem value="4">4 sabores</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-sm">Regra de preço</Label>
-                        <Select
-                          value={categorySettings.half_half_pricing_rule}
-                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, half_half_pricing_rule: v } : null)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="highest">Preço do maior sabor</SelectItem>
-                            <SelectItem value="average">Média dos preços</SelectItem>
-                            <SelectItem value="sum">Soma proporcional</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-sm">Desconto meio a meio (%)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={categorySettings.half_half_discount_percentage}
-                          onChange={(e) => setCategorySettings(prev => prev ? { ...prev, half_half_discount_percentage: parseFloat(e.target.value) || 0 } : null)}
-                          className="h-9"
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-2">
+                  {/* Dough Selection Settings */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm">Configuração de Massa</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium">Permitir sabores repetidos</p>
-                          <p className="text-xs text-muted-foreground">Ex: Calabresa + Calabresa</p>
+                          <p className="text-sm font-medium">Massa obrigatória</p>
+                          <p className="text-xs text-muted-foreground">Cliente deve escolher uma massa</p>
                         </div>
                         <Switch
-                          checked={categorySettings.allow_repeated_flavors}
-                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_repeated_flavors: v } : null)}
+                          checked={categorySettings.dough_is_required}
+                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, dough_is_required: v } : null)}
                         />
                       </div>
-                    </>
-                  )}
+                      <div className="space-y-2">
+                        <Label className="text-sm">Quantidade máxima de massas</Label>
+                        <Select
+                          value={String(categorySettings.dough_max_selections)}
+                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, dough_max_selections: parseInt(v) } : null)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 (seleção única)</SelectItem>
+                            <SelectItem value="2">2 massas</SelectItem>
+                            <SelectItem value="3">3 massas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Crust Selection Settings */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm">Configuração de Borda</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Borda obrigatória</p>
+                          <p className="text-xs text-muted-foreground">Cliente deve escolher uma borda</p>
+                        </div>
+                        <Switch
+                          checked={categorySettings.crust_is_required}
+                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, crust_is_required: v } : null)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Quantidade máxima de bordas</Label>
+                        <Select
+                          value={String(categorySettings.crust_max_selections)}
+                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, crust_max_selections: parseInt(v) } : null)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 (seleção única)</SelectItem>
+                            <SelectItem value="2">2 bordas</SelectItem>
+                            <SelectItem value="3">3 bordas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Half-Half Settings */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm">Configuração Meio a Meio</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Permitir meio a meio</p>
+                          <p className="text-xs text-muted-foreground">Clientes podem montar pizzas com múltiplos sabores</p>
+                        </div>
+                        <Switch
+                          checked={categorySettings.allow_half_half}
+                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_half_half: v } : null)}
+                        />
+                      </div>
+                      
+                      {categorySettings.allow_half_half && (
+                        <>
+                          <div className="space-y-2">
+                            <Label className="text-sm">Máximo de sabores</Label>
+                            <Select
+                              value={String(categorySettings.max_flavors)}
+                              onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, max_flavors: parseInt(v) } : null)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="2">2 sabores</SelectItem>
+                                <SelectItem value="3">3 sabores</SelectItem>
+                                <SelectItem value="4">4 sabores</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-sm">Regra de preço</Label>
+                            <Select
+                              value={categorySettings.half_half_pricing_rule}
+                              onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, half_half_pricing_rule: v } : null)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="highest">Preço do maior sabor</SelectItem>
+                                <SelectItem value="average">Média dos preços</SelectItem>
+                                <SelectItem value="sum">Soma proporcional</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-sm">Desconto meio a meio (%)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={categorySettings.half_half_discount_percentage}
+                              onChange={(e) => setCategorySettings(prev => prev ? { ...prev, half_half_discount_percentage: parseFloat(e.target.value) || 0 } : null)}
+                              className="h-9"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between py-2">
+                            <div>
+                              <p className="text-sm font-medium">Permitir sabores repetidos</p>
+                              <p className="text-xs text-muted-foreground">Ex: Calabresa + Calabresa</p>
+                            </div>
+                            <Switch
+                              checked={categorySettings.allow_repeated_flavors}
+                              onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_repeated_flavors: v } : null)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
                   
                   <Button onClick={saveSettings} disabled={savingSettings} className="w-full">
                     {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

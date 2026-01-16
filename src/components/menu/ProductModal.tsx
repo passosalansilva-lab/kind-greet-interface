@@ -250,6 +250,7 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
         acaiCategoryResult,
         acaiSizesResult,
         pizzaCategoryResult,
+        pizzaCategorySettingsResult,
       ] = await Promise.all([
         supabase
           .from('product_option_groups')
@@ -302,6 +303,13 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
               .eq('category_id', categoryId)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null } as any),
+        categoryId
+          ? supabase
+              .from('pizza_category_settings')
+              .select('*')
+              .eq('category_id', categoryId)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null } as any),
       ]);
 
       const { data: groupsData, error: groupsError } = groupsResult as any;
@@ -313,6 +321,7 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
       const { data: acaiCategoryData, error: acaiCategoryError } = acaiCategoryResult as any;
       const { data: acaiSizesData, error: acaiSizesError } = acaiSizesResult as any;
       const { data: pizzaCategoryData, error: pizzaCategoryError } = pizzaCategoryResult as any;
+      const { data: pizzaCategorySettingsData, error: pizzaCategorySettingsError } = pizzaCategorySettingsResult as any;
 
       if (groupsError) throw groupsError;
       if (optionsError) throw optionsError;
@@ -323,11 +332,19 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
       if (acaiCategoryError) throw acaiCategoryError;
       if (acaiSizesError) throw acaiSizesError;
       if (pizzaCategoryError) throw pizzaCategoryError;
+      // Don't throw for settings error - just use defaults
 
       const isAcaiCategory = !!acaiCategoryData;
       const isPizzaCategory = !!pizzaCategoryData;
       const hasAcaiSizes = isAcaiCategory && acaiSizesData && Array.isArray(acaiSizesData) && acaiSizesData.length > 0;
       const hasPizzaSizes = isPizzaCategory && sizesData && Array.isArray(sizesData) && sizesData.length > 0;
+      
+      // Pizza category settings with defaults
+      const pizzaSettings = pizzaCategorySettingsData || {};
+      const doughMaxSelections = pizzaSettings.dough_max_selections ?? 1;
+      const doughIsRequired = pizzaSettings.dough_is_required ?? true;
+      const crustMaxSelections = pizzaSettings.crust_max_selections ?? 1;
+      const crustIsRequired = pizzaSettings.crust_is_required ?? false;
 
       const groups: OptionGroup[] = (groupsData || []).map((group: any) => ({
         ...group,
@@ -494,10 +511,10 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
           id: 'pizza-dough',
           name: 'Tipo de massa',
           description: null,
-          is_required: true,
-          min_selections: 1,
-          max_selections: 1,
-          selection_type: 'single',
+          is_required: doughIsRequired,
+          min_selections: doughIsRequired ? 1 : 0,
+          max_selections: doughMaxSelections,
+          selection_type: doughMaxSelections === 1 ? 'single' : 'multiple',
           sort_order: -1,
           free_quantity_limit: 0,
           extra_unit_price: 0,
@@ -505,7 +522,7 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
             id: dough.id,
             name: dough.name,
             price_modifier: Number(dough.extra_price ?? 0),
-            is_required: true,
+            is_required: false,
             is_available: true,
             sort_order: 0,
             group_id: 'pizza-dough',
@@ -530,10 +547,10 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
             id: 'pizza-crust',
             name: 'Borda',
             description: null,
-            is_required: false,
-            min_selections: 0,
-            max_selections: 1,
-            selection_type: 'single',
+            is_required: crustIsRequired,
+            min_selections: crustIsRequired ? 1 : 0,
+            max_selections: crustMaxSelections,
+            selection_type: crustMaxSelections === 1 ? 'single' : 'multiple',
             sort_order: maxUserSortOrder + 100,
             free_quantity_limit: 0,
             extra_unit_price: 0,
