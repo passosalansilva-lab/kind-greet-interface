@@ -373,6 +373,11 @@ const canSeeItem = (item: NavItem): boolean => {
                 alt="Cardápio On" 
                 className="h-16 w-auto object-contain"
               />
+              {isElectronApp && (
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded">
+                  Desktop
+                </span>
+              )}
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
