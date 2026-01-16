@@ -204,6 +204,7 @@ const AdminReferrals = () => {
   const pageTitle = "Programa de Indicações";
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
@@ -391,6 +392,7 @@ const AdminReferrals = () => {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 };
 
