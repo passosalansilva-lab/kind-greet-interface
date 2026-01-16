@@ -29,6 +29,7 @@ import {
   Flame,
   Monitor,
   Download,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -407,13 +408,27 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              <Button 
-                className="gradient-primary gap-2"
-                onClick={() => window.open('https://github.com/passosalansilva-lab/archive/releases/download/untagged-62a4d689b36cb89f7514/CardapioOn-Setup.exe', '_blank')}
-              >
-                <Download className="h-4 w-4" />
-                Baixar para Windows
-              </Button>
+              {!localStorage.getItem('desktop-app-downloaded') && (
+                <Button 
+                  className="gradient-primary gap-2"
+                  asChild
+                >
+                  <a 
+                    href="https://github.com/passosalansilva-lab/archive/releases/download/untagged-62a4d689b36cb89f7514/CardpOnDelivery.exe"
+                    download
+                    onClick={() => localStorage.setItem('desktop-app-downloaded', 'true')}
+                  >
+                    <Download className="h-4 w-4" />
+                    Baixar para Windows
+                  </a>
+                </Button>
+              )}
+              {localStorage.getItem('desktop-app-downloaded') && (
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-500" />
+                  Já baixado
+                </span>
+              )}
             </CardContent>
           </Card>
         )}
