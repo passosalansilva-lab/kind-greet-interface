@@ -10,6 +10,8 @@ import {
   LogOut,
   Menu,
   X,
+  Minus,
+  Square,
   ChevronDown,
   ChevronRight,
   Ticket,
@@ -361,14 +363,32 @@ const canSeeItem = (item: NavItem): boolean => {
           <span className="text-[11px] text-sidebar-foreground/60 font-medium select-none">
             Cardápio On Desktop
           </span>
-          <button
-            onClick={handleSignOutClick}
-            className="p-1 rounded hover:bg-destructive/20 text-sidebar-foreground/50 hover:text-destructive transition-colors"
+          <div 
+            className="flex items-center gap-1"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            title="Fechar aplicativo"
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            <button
+              onClick={() => (window as any).electronAPI?.minimize?.()}
+              className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title="Minimizar"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => (window as any).electronAPI?.maximize?.()}
+              className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title="Maximizar"
+            >
+              <Square className="h-3 w-3" />
+            </button>
+            <button
+              onClick={handleSignOutClick}
+              className="p-1 rounded hover:bg-destructive/20 text-sidebar-foreground/50 hover:text-destructive transition-colors"
+              title="Fechar aplicativo"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
