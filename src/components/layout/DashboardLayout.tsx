@@ -417,11 +417,6 @@ const canSeeItem = (item: NavItem): boolean => {
                 alt="Cardápio On" 
                 className="h-16 w-auto object-contain flex-shrink-0"
               />
-              {isElectronApp && (
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded whitespace-nowrap flex-shrink-0">
-                  Desktop
-                </span>
-              )}
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -604,6 +599,14 @@ const canSeeItem = (item: NavItem): boolean => {
           <div className="flex-1 flex items-center justify-end gap-3">
             {/* Alerta de pedidos pendentes/confirmados */}
             <PendingOrdersAlert />
+            
+            {/* Desktop badge - only on Electron */}
+            {isElectronApp && (
+              <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded whitespace-nowrap">
+                Desktop
+              </span>
+            )}
+            
             {realtimeStatus !== 'idle' && (
               <div
                 className={cn(
