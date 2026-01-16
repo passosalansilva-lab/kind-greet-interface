@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, Trash2, Pizza, ChevronDown } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2, Plus, Trash2, Pizza, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -14,51 +13,35 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProductPizzaSettingsProps {
-  categoryId: string;
+  productId: string;
   companyId: string;
-  productId: string | null;
   allowHalfHalf: boolean;
   onAllowHalfHalfChange: (value: boolean) => void;
 }
 
-interface PizzaSize {
+interface OptionItem {
   id: string;
   name: string;
-  base_price: number;
-  max_flavors: number;
-  slices: number;
+  price_modifier: number;
   sort_order: number;
+  group_id: string;
 }
 
-interface PizzaDough {
+interface OptionGroup {
   id: string;
   name: string;
-  extra_price: number;
-  active: boolean;
+  is_required: boolean;
+  max_selections: number;
+  selection_type: string;
 }
 
-interface PizzaCrustType {
-  id: string;
-  name: string;
-  active: boolean;
-}
-
-interface PizzaCrustFlavor {
-  id: string;
-  name: string;
-  type_id: string;
-  extra_price: number;
-  active: boolean;
-}
-
-interface CategorySettings {
+interface ProductSettings {
   id?: string;
-  category_id: string;
+  product_id: string;
   allow_half_half: boolean;
   max_flavors: number;
   half_half_pricing_rule: string;
   half_half_discount_percentage: number;
-  allow_repeated_flavors: boolean;
   dough_max_selections: number;
   dough_is_required: boolean;
   crust_max_selections: number;
@@ -66,9 +49,8 @@ interface CategorySettings {
 }
 
 export function ProductPizzaSettings({
-  categoryId,
-  companyId,
   productId,
+  companyId,
   allowHalfHalf,
   onAllowHalfHalfChange,
 }: ProductPizzaSettingsProps) {
@@ -77,354 +59,191 @@ export function ProductPizzaSettings({
   const [activeTab, setActiveTab] = useState('sizes');
   
   // Data states
-  const [sizes, setSizes] = useState<PizzaSize[]>([]);
-  const [doughs, setDoughs] = useState<PizzaDough[]>([]);
-  const [crustTypes, setCrustTypes] = useState<PizzaCrustType[]>([]);
-  const [crustFlavors, setCrustFlavors] = useState<PizzaCrustFlavor[]>([]);
-  const [categorySettings, setCategorySettings] = useState<CategorySettings | null>(null);
+  const [sizes, setSizes] = useState<OptionItem[]>([]);
+  const [doughs, setDoughs] = useState<OptionItem[]>([]);
+  const [crusts, setCrusts] = useState<OptionItem[]>([]);
+  const [settings, setSettings] = useState<ProductSettings | null>(null);
+  
+  // Group references
+  const [sizeGroup, setSizeGroup] = useState<OptionGroup | null>(null);
+  const [doughGroup, setDoughGroup] = useState<OptionGroup | null>(null);
+  const [crustGroup, setCrustGroup] = useState<OptionGroup | null>(null);
   
   // Form states
-  const [newSize, setNewSize] = useState({ name: '', base_price: 0, max_flavors: 2, slices: 8 });
-  const [newDough, setNewDough] = useState({ name: '', extra_price: 0 });
-  const [newCrustType, setNewCrustType] = useState('');
-  const [newCrustFlavor, setNewCrustFlavor] = useState({ name: '', type_id: '', extra_price: 0 });
-  const [editingCrustFlavor, setEditingCrustFlavor] = useState<PizzaCrustFlavor | null>(null);
+  const [newSize, setNewSize] = useState({ name: '', price_modifier: 0 });
+  const [newDough, setNewDough] = useState({ name: '', price_modifier: 0 });
+  const [newCrust, setNewCrust] = useState({ name: '', price_modifier: 0 });
   
   // Saving states
-  const [savingSizes, setSavingSizes] = useState(false);
-  const [savingDoughs, setSavingDoughs] = useState(false);
-  const [savingCrusts, setSavingCrusts] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (categoryId && companyId) {
-      loadAllData();
-    }
-  }, [categoryId, companyId]);
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
       
-      const [sizesRes, doughsRes, crustTypesRes, crustFlavorsRes, settingsRes] = await Promise.all([
-        supabase.from('pizza_category_sizes').select('*').eq('category_id', categoryId).order('sort_order'),
-        supabase.from('pizza_dough_types').select('*').eq('active', true).order('name'),
-        supabase.from('pizza_crust_types').select('*').eq('active', true).order('name'),
-        supabase.from('pizza_crust_flavors').select('*').eq('active', true).order('name'),
-        supabase.from('pizza_category_settings').select('*').eq('category_id', categoryId).maybeSingle(),
+      const [groupsRes, optionsRes, settingsRes] = await Promise.all([
+        supabase.from('product_option_groups').select('*').eq('product_id', productId).order('sort_order'),
+        supabase.from('product_options').select('*').eq('product_id', productId).eq('is_available', true).order('sort_order'),
+        supabase.from('pizza_product_settings').select('*').eq('product_id', productId).maybeSingle(),
       ]);
       
-      if (sizesRes.error) throw sizesRes.error;
-      if (doughsRes.error) throw doughsRes.error;
-      if (crustTypesRes.error) throw crustTypesRes.error;
-      if (crustFlavorsRes.error) throw crustFlavorsRes.error;
+      if (groupsRes.error) throw groupsRes.error;
+      if (optionsRes.error) throw optionsRes.error;
       
-      setSizes(sizesRes.data || []);
-      setDoughs(doughsRes.data || []);
-      setCrustTypes(crustTypesRes.data || []);
-      setCrustFlavors(crustFlavorsRes.data || []);
+      const groups = groupsRes.data || [];
+      const options = optionsRes.data || [];
       
+      // Find pizza-specific groups
+      const sizeG = groups.find(g => g.name === 'Tamanho' || g.name === 'Tamanhos');
+      const doughG = groups.find(g => g.name === 'Massa' || g.name === 'Massas');
+      const crustG = groups.find(g => g.name === 'Borda' || g.name === 'Bordas');
+      
+      setSizeGroup(sizeG || null);
+      setDoughGroup(doughG || null);
+      setCrustGroup(crustG || null);
+      
+      // Map options to their groups
+      setSizes(options.filter(o => o.group_id === sizeG?.id).map(o => ({
+        id: o.id, name: o.name, price_modifier: o.price_modifier, sort_order: o.sort_order, group_id: o.group_id
+      })));
+      setDoughs(options.filter(o => o.group_id === doughG?.id).map(o => ({
+        id: o.id, name: o.name, price_modifier: o.price_modifier, sort_order: o.sort_order, group_id: o.group_id
+      })));
+      setCrusts(options.filter(o => o.group_id === crustG?.id).map(o => ({
+        id: o.id, name: o.name, price_modifier: o.price_modifier, sort_order: o.sort_order, group_id: o.group_id
+      })));
+      
+      // Load settings
       if (settingsRes.data) {
-        const data = settingsRes.data as any;
-        setCategorySettings({
-          id: data.id,
-          category_id: data.category_id,
-          allow_half_half: data.allow_half_half ?? true,
-          max_flavors: data.max_flavors ?? 2,
-          half_half_pricing_rule: data.half_half_pricing_rule ?? 'average',
-          half_half_discount_percentage: data.half_half_discount_percentage ?? 0,
-          allow_repeated_flavors: data.allow_repeated_flavors ?? false,
-          dough_max_selections: data.dough_max_selections ?? 1,
-          dough_is_required: data.dough_is_required ?? true,
-          crust_max_selections: data.crust_max_selections ?? 1,
-          crust_is_required: data.crust_is_required ?? false,
+        const d = settingsRes.data as any;
+        setSettings({
+          id: d.id, product_id: d.product_id,
+          allow_half_half: d.allow_half_half ?? true,
+          max_flavors: d.max_flavors ?? 2,
+          half_half_pricing_rule: d.half_half_pricing_rule ?? 'average',
+          half_half_discount_percentage: d.half_half_discount_percentage ?? 0,
+          dough_max_selections: d.dough_max_selections ?? 1,
+          dough_is_required: d.dough_is_required ?? true,
+          crust_max_selections: d.crust_max_selections ?? 1,
+          crust_is_required: d.crust_is_required ?? false,
         });
       } else {
-        setCategorySettings({
-          category_id: categoryId,
-          allow_half_half: true,
-          max_flavors: 2,
-          half_half_pricing_rule: 'average',
-          half_half_discount_percentage: 0,
-          allow_repeated_flavors: false,
-          dough_max_selections: 1,
-          dough_is_required: true,
-          crust_max_selections: 1,
-          crust_is_required: false,
+        setSettings({
+          product_id: productId, allow_half_half: true, max_flavors: 2,
+          half_half_pricing_rule: 'average', half_half_discount_percentage: 0,
+          dough_max_selections: 1, dough_is_required: true,
+          crust_max_selections: 1, crust_is_required: false,
         });
       }
     } catch (error: any) {
-      console.error('Error loading pizza data:', error);
-      toast({ title: 'Erro ao carregar configurações', description: error.message, variant: 'destructive' });
+      console.error('Error loading pizza config:', error);
+      toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
+  }, [productId, toast]);
+
+  useEffect(() => {
+    if (productId) loadAllData();
+  }, [productId, loadAllData]);
+
+  // Create group if needed
+  const ensureGroup = async (name: string, isRequired: boolean, maxSelections: number) => {
+    const { data, error } = await supabase
+      .from('product_option_groups')
+      .insert({ product_id: productId, name, is_required: isRequired, max_selections: maxSelections, selection_type: maxSelections > 1 ? 'multiple' : 'single', sort_order: 0 })
+      .select().single();
+    if (error) throw error;
+    return data;
   };
 
-  // Size management
-  const addSize = async () => {
-    if (!newSize.name.trim()) return;
-    
+  // Add option
+  const addOption = async (type: 'size' | 'dough' | 'crust', name: string, price: number) => {
+    if (!name.trim()) return;
+    setSaving(true);
     try {
-      setSavingSizes(true);
-      const { data, error } = await supabase
-        .from('pizza_category_sizes')
-        .insert({
-          category_id: categoryId,
-          name: newSize.name.trim(),
-          base_price: newSize.base_price,
-          max_flavors: newSize.max_flavors,
-          slices: newSize.slices,
-          sort_order: sizes.length,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setSizes([...sizes, data]);
-      setNewSize({ name: '', base_price: 0, max_flavors: 2, slices: 8 });
-      toast({ title: 'Tamanho adicionado' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao adicionar tamanho', description: error.message, variant: 'destructive' });
-    } finally {
-      setSavingSizes(false);
-    }
-  };
-
-  const updateSize = async (id: string, updates: Partial<PizzaSize>) => {
-    try {
-      const { error } = await supabase.from('pizza_category_sizes').update(updates).eq('id', id);
-      if (error) throw error;
-      
-      setSizes(sizes.map(s => s.id === id ? { ...s, ...updates } : s));
-    } catch (error: any) {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const deleteSize = async (id: string) => {
-    try {
-      const { error } = await supabase.from('pizza_category_sizes').delete().eq('id', id);
-      if (error) throw error;
-      
-      setSizes(sizes.filter(s => s.id !== id));
-      toast({ title: 'Tamanho removido' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  // Dough management
-  const addDough = async () => {
-    if (!newDough.name.trim()) return;
-    
-    try {
-      setSavingDoughs(true);
-      const { data, error } = await supabase
-        .from('pizza_dough_types')
-        .insert({
-          name: newDough.name.trim(),
-          extra_price: newDough.extra_price,
-          active: true,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setDoughs([...doughs, data]);
-      setNewDough({ name: '', extra_price: 0 });
-      toast({ title: 'Massa adicionada' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao adicionar massa', description: error.message, variant: 'destructive' });
-    } finally {
-      setSavingDoughs(false);
-    }
-  };
-
-  const deleteDough = async (id: string) => {
-    try {
-      const { error } = await supabase.from('pizza_dough_types').update({ active: false }).eq('id', id);
-      if (error) throw error;
-      
-      setDoughs(doughs.filter(d => d.id !== id));
-      toast({ title: 'Massa removida' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  // Crust management
-  const addCrustType = async () => {
-    if (!newCrustType.trim()) return;
-    
-    try {
-      setSavingCrusts(true);
-      const { data, error } = await supabase
-        .from('pizza_crust_types')
-        .insert({ name: newCrustType.trim(), active: true })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setCrustTypes([...crustTypes, data]);
-      setNewCrustType('');
-      toast({ title: 'Tipo de borda adicionado' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao adicionar', description: error.message, variant: 'destructive' });
-    } finally {
-      setSavingCrusts(false);
-    }
-  };
-
-  const addCrustFlavor = async () => {
-    if (!newCrustFlavor.name.trim() || !newCrustFlavor.type_id) return;
-    
-    try {
-      setSavingCrusts(true);
-      const { data, error } = await supabase
-        .from('pizza_crust_flavors')
-        .insert({
-          name: newCrustFlavor.name.trim(),
-          type_id: newCrustFlavor.type_id,
-          extra_price: newCrustFlavor.extra_price,
-          active: true,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setCrustFlavors([...crustFlavors, data]);
-      setNewCrustFlavor({ name: '', type_id: '', extra_price: 0 });
-      toast({ title: 'Sabor de borda adicionado' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao adicionar', description: error.message, variant: 'destructive' });
-    } finally {
-      setSavingCrusts(false);
-    }
-  };
-
-  const updateCrustFlavor = async (id: string, updates: Partial<PizzaCrustFlavor>) => {
-    try {
-      const { error } = await supabase.from('pizza_crust_flavors').update(updates).eq('id', id);
-      if (error) throw error;
-      
-      setCrustFlavors(crustFlavors.map(f => f.id === id ? { ...f, ...updates } : f));
-      setEditingCrustFlavor(null);
-      toast({ title: 'Borda atualizada' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const deleteCrustFlavor = async (id: string) => {
-    try {
-      const { error } = await supabase.from('pizza_crust_flavors').update({ active: false }).eq('id', id);
-      if (error) throw error;
-      
-      setCrustFlavors(crustFlavors.filter(f => f.id !== id));
-      toast({ title: 'Sabor removido' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const deleteCrustType = async (id: string) => {
-    try {
-      // First check if there are flavors for this type
-      const flavorsOfType = crustFlavors.filter(f => f.type_id === id);
-      
-      // Deactivate all flavors of this type
-      for (const flavor of flavorsOfType) {
-        await supabase.from('pizza_crust_flavors').update({ active: false }).eq('id', flavor.id);
+      let group = type === 'size' ? sizeGroup : type === 'dough' ? doughGroup : crustGroup;
+      if (!group) {
+        const groupName = type === 'size' ? 'Tamanho' : type === 'dough' ? 'Massa' : 'Borda';
+        group = await ensureGroup(groupName, type === 'size', 1);
+        if (type === 'size') setSizeGroup(group);
+        else if (type === 'dough') setDoughGroup(group);
+        else setCrustGroup(group);
       }
       
-      // Deactivate the crust type
-      const { error } = await supabase.from('pizza_crust_types').update({ active: false }).eq('id', id);
+      const items = type === 'size' ? sizes : type === 'dough' ? doughs : crusts;
+      const { data, error } = await supabase.from('product_options').insert({
+        product_id: productId, group_id: group.id, name: name.trim(),
+        price_modifier: price, is_available: true, sort_order: items.length,
+      }).select().single();
+      
       if (error) throw error;
       
-      setCrustTypes(crustTypes.filter(t => t.id !== id));
-      setCrustFlavors(crustFlavors.filter(f => f.type_id !== id));
-      toast({ title: 'Tipo de borda removido' });
+      const newItem = { id: data.id, name: data.name, price_modifier: data.price_modifier, sort_order: data.sort_order, group_id: data.group_id };
+      if (type === 'size') { setSizes([...sizes, newItem]); setNewSize({ name: '', price_modifier: 0 }); }
+      else if (type === 'dough') { setDoughs([...doughs, newItem]); setNewDough({ name: '', price_modifier: 0 }); }
+      else { setCrusts([...crusts, newItem]); setNewCrust({ name: '', price_modifier: 0 }); }
+      
+      toast({ title: 'Adicionado' });
     } catch (error: any) {
-      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Settings management
-  const saveSettings = async () => {
-    if (!categorySettings) return;
-    
+  const deleteOption = async (id: string, type: 'size' | 'dough' | 'crust') => {
     try {
-      setSavingSettings(true);
-      
-      if (categorySettings.id) {
-        const { error } = await supabase
-          .from('pizza_category_settings')
-          .update({
-            allow_half_half: categorySettings.allow_half_half,
-            max_flavors: categorySettings.max_flavors,
-            half_half_pricing_rule: categorySettings.half_half_pricing_rule,
-            half_half_discount_percentage: categorySettings.half_half_discount_percentage,
-            allow_repeated_flavors: categorySettings.allow_repeated_flavors,
-            dough_max_selections: categorySettings.dough_max_selections,
-            dough_is_required: categorySettings.dough_is_required,
-            crust_max_selections: categorySettings.crust_max_selections,
-            crust_is_required: categorySettings.crust_is_required,
-          })
-          .eq('id', categorySettings.id);
-        
-        if (error) throw error;
+      await supabase.from('product_options').update({ is_available: false }).eq('id', id);
+      if (type === 'size') setSizes(sizes.filter(s => s.id !== id));
+      else if (type === 'dough') setDoughs(doughs.filter(d => d.id !== id));
+      else setCrusts(crusts.filter(c => c.id !== id));
+      toast({ title: 'Removido' });
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      const payload = { ...settings, product_id: productId };
+      if (settings.id) {
+        await supabase.from('pizza_product_settings').update(payload).eq('id', settings.id);
       } else {
-        const { data, error } = await supabase
-          .from('pizza_category_settings')
-          .insert({
-            category_id: categoryId,
-            allow_half_half: categorySettings.allow_half_half,
-            max_flavors: categorySettings.max_flavors,
-            half_half_pricing_rule: categorySettings.half_half_pricing_rule,
-            half_half_discount_percentage: categorySettings.half_half_discount_percentage,
-            allow_repeated_flavors: categorySettings.allow_repeated_flavors,
-            dough_max_selections: categorySettings.dough_max_selections,
-            dough_is_required: categorySettings.dough_is_required,
-            crust_max_selections: categorySettings.crust_max_selections,
-            crust_is_required: categorySettings.crust_is_required,
-          })
-          .select()
-          .single();
-        
-        if (error) throw error;
-        setCategorySettings({
-          ...data,
-          dough_max_selections: (data as any).dough_max_selections ?? 1,
-          dough_is_required: (data as any).dough_is_required ?? true,
-          crust_max_selections: (data as any).crust_max_selections ?? 1,
-          crust_is_required: (data as any).crust_is_required ?? false,
-        });
+        const { data } = await supabase.from('pizza_product_settings').insert(payload).select().single();
+        if (data) setSettings({ ...settings, id: (data as any).id });
+      }
+      
+      // Update group settings
+      if (doughGroup) {
+        await supabase.from('product_option_groups').update({
+          is_required: settings.dough_is_required,
+          max_selections: settings.dough_max_selections,
+          selection_type: settings.dough_max_selections > 1 ? 'multiple' : 'single',
+        }).eq('id', doughGroup.id);
+      }
+      if (crustGroup) {
+        await supabase.from('product_option_groups').update({
+          is_required: settings.crust_is_required,
+          max_selections: settings.crust_max_selections,
+          selection_type: settings.crust_max_selections > 1 ? 'multiple' : 'single',
+        }).eq('id', crustGroup.id);
       }
       
       toast({ title: 'Regras salvas' });
     } catch (error: any) {
-      toast({ title: 'Erro ao salvar regras', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } finally {
-      setSavingSettings(false);
+      setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-4">
-      {/* Product-specific toggle */}
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center justify-between">
@@ -437,424 +256,126 @@ export function ProductPizzaSettings({
         </CardContent>
       </Card>
 
-      {/* Category-level pizza settings */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Pizza className="h-4 w-4" />
-            Configurações da Categoria Pizza
+            Configurações desta Pizza
           </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Essas configurações valem para todos os produtos desta categoria
-          </p>
+          <p className="text-xs text-muted-foreground">Tamanhos, massas e bordas específicos para este produto</p>
         </CardHeader>
         <CardContent className="pt-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="sizes" className="text-xs">
-                Tamanhos
-                {sizes.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{sizes.length}</Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="doughs" className="text-xs">
-                Massas
-                {doughs.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{doughs.length}</Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="crusts" className="text-xs">
-                Bordas
-                {crustFlavors.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{crustFlavors.length}</Badge>}
-              </TabsTrigger>
+              <TabsTrigger value="sizes" className="text-xs">Tamanhos {sizes.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{sizes.length}</Badge>}</TabsTrigger>
+              <TabsTrigger value="doughs" className="text-xs">Massas {doughs.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{doughs.length}</Badge>}</TabsTrigger>
+              <TabsTrigger value="crusts" className="text-xs">Bordas {crusts.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{crusts.length}</Badge>}</TabsTrigger>
               <TabsTrigger value="rules" className="text-xs">Regras</TabsTrigger>
             </TabsList>
 
-            {/* Sizes Tab */}
             <TabsContent value="sizes" className="space-y-3 mt-3">
-              {/* Header labels */}
-              <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-                <span className="flex-1 min-w-[80px]">Tamanho</span>
-                <span className="w-24 text-center">Preço</span>
-                <span className="w-14 text-center">Fatias</span>
-                <span className="w-14 text-center">Sabores</span>
-                <span className="w-8"></span>
-              </div>
-              
-              {sizes.length > 0 && (
-                <div className="space-y-2">
-                  {sizes.map(size => (
-                    <div key={size.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-                      <Input
-                        value={size.name}
-                        onChange={(e) => updateSize(size.id, { name: e.target.value })}
-                        className="flex-1 min-w-[80px] h-8 text-sm"
-                        placeholder="Ex: Grande"
-                      />
-                      <div className="w-24">
-                        <CurrencyInput
-                          value={size.base_price}
-                          onChange={(v) => updateSize(size.id, { base_price: parseFloat(String(v)) || 0 })}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={size.slices}
-                        onChange={(e) => updateSize(size.id, { slices: parseInt(e.target.value) || 8 })}
-                        className="w-14 h-8 text-sm text-center"
-                        placeholder="8"
-                      />
-                      <Input
-                        type="number"
-                        min={1}
-                        max={4}
-                        value={size.max_flavors}
-                        onChange={(e) => updateSize(size.id, { max_flavors: parseInt(e.target.value) || 1 })}
-                        className="w-14 h-8 text-sm text-center"
-                      />
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteSize(size.id)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
+              {sizes.map(s => (
+                <div key={s.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                  <span className="flex-1 text-sm">{s.name}</span>
+                  <span className="text-sm text-muted-foreground">{s.price_modifier > 0 ? `+R$ ${s.price_modifier.toFixed(2)}` : 'Base'}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteOption(s.id, 'size')}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                 </div>
-              )}
-              
+              ))}
               <div className="flex items-center gap-2 p-2 rounded-md border border-dashed">
-                <Input
-                  value={newSize.name}
-                  onChange={(e) => setNewSize(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Grande"
-                  className="flex-1 min-w-[80px] h-8 text-sm"
-                />
-                <div className="w-24">
-                  <CurrencyInput
-                    value={newSize.base_price}
-                    onChange={(v) => setNewSize(prev => ({ ...prev, base_price: parseFloat(String(v)) || 0 }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newSize.slices}
-                  onChange={(e) => setNewSize(prev => ({ ...prev, slices: parseInt(e.target.value) || 8 }))}
-                  className="w-14 h-8 text-sm text-center"
-                  placeholder="8"
-                />
-                <Input
-                  type="number"
-                  min={1}
-                  max={4}
-                  value={newSize.max_flavors}
-                  onChange={(e) => setNewSize(prev => ({ ...prev, max_flavors: parseInt(e.target.value) || 1 }))}
-                  className="w-14 h-8 text-sm text-center"
-                />
-                <Button size="sm" onClick={addSize} disabled={savingSizes || !newSize.name.trim()} className="h-8">
-                  {savingSizes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                </Button>
+                <Input value={newSize.name} onChange={(e) => setNewSize(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Grande" className="flex-1 h-8 text-sm" />
+                <div className="w-24"><CurrencyInput value={newSize.price_modifier} onChange={(v) => setNewSize(p => ({ ...p, price_modifier: parseFloat(String(v)) || 0 }))} className="h-8 text-sm" /></div>
+                <Button size="sm" onClick={() => addOption('size', newSize.name, newSize.price_modifier)} disabled={saving || !newSize.name.trim()} className="h-8">{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}</Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                <strong>Fatias:</strong> quantidade de pedaços • <strong>Sabores:</strong> máx. para meio a meio
-              </p>
             </TabsContent>
 
-            {/* Doughs Tab */}
             <TabsContent value="doughs" className="space-y-3 mt-3">
-              {doughs.length > 0 && (
-                <div className="space-y-2">
-                  {doughs.map(dough => (
-                    <div key={dough.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-                      <span className="flex-1 text-sm">{dough.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {dough.extra_price > 0 ? `+R$ ${dough.extra_price.toFixed(2)}` : 'Grátis'}
-                      </span>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteDough(dough.id)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+              {settings && (
+                <Card className="bg-muted/30 mb-3">
+                  <CardContent className="space-y-3 pt-4">
+                    <div className="flex items-center justify-between">
+                      <div><p className="text-sm font-medium">Massa obrigatória</p><p className="text-xs text-muted-foreground">Cliente deve escolher</p></div>
+                      <Switch checked={settings.dough_is_required} onCheckedChange={(v) => setSettings(p => p ? { ...p, dough_is_required: v } : null)} />
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Tipo de seleção</Label>
+                      <Select value={String(settings.dough_max_selections)} onValueChange={(v) => setSettings(p => p ? { ...p, dough_max_selections: parseInt(v) } : null)}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Seleção única</SelectItem>
+                          <SelectItem value="2">Múltipla (até 2)</SelectItem>
+                          <SelectItem value="3">Múltipla (até 3)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-              
-              <div className="flex items-center gap-2 p-2 rounded-md border border-dashed">
-                <Input
-                  value={newDough.name}
-                  onChange={(e) => setNewDough(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Tradicional, Fina"
-                  className="flex-1 h-8 text-sm"
-                />
-                <div className="w-24">
-                  <CurrencyInput
-                    value={newDough.extra_price}
-                    onChange={(v) => setNewDough(prev => ({ ...prev, extra_price: parseFloat(String(v)) || 0 }))}
-                    className="h-8 text-sm"
-                    placeholder="+ Preço"
-                  />
+              {doughs.map(d => (
+                <div key={d.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                  <span className="flex-1 text-sm">{d.name}</span>
+                  <span className="text-sm text-muted-foreground">{d.price_modifier > 0 ? `+R$ ${d.price_modifier.toFixed(2)}` : 'Grátis'}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteOption(d.id, 'dough')}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                 </div>
-                <Button size="sm" onClick={addDough} disabled={savingDoughs || !newDough.name.trim()} className="h-8">
-                  {savingDoughs ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                </Button>
+              ))}
+              <div className="flex items-center gap-2 p-2 rounded-md border border-dashed">
+                <Input value={newDough.name} onChange={(e) => setNewDough(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Tradicional" className="flex-1 h-8 text-sm" />
+                <div className="w-24"><CurrencyInput value={newDough.price_modifier} onChange={(v) => setNewDough(p => ({ ...p, price_modifier: parseFloat(String(v)) || 0 }))} className="h-8 text-sm" /></div>
+                <Button size="sm" onClick={() => addOption('dough', newDough.name, newDough.price_modifier)} disabled={saving || !newDough.name.trim()} className="h-8">{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}</Button>
               </div>
-              <p className="text-xs text-muted-foreground">Massas disponíveis para todas as pizzas (global)</p>
             </TabsContent>
 
-            {/* Crusts Tab */}
-            <TabsContent value="crusts" className="space-y-4 mt-3">
-              {/* Add new crust type */}
-              <div className="flex items-center gap-2 p-2 rounded-md border border-dashed">
-                <Input
-                  value={newCrustType}
-                  onChange={(e) => setNewCrustType(e.target.value)}
-                  placeholder="Novo tipo de borda (ex: Recheada, Vulcão)"
-                  className="flex-1 h-9 text-sm"
-                />
-                <Button onClick={addCrustType} disabled={savingCrusts || !newCrustType.trim()} className="h-9">
-                  {savingCrusts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                  Criar tipo
-                </Button>
-              </div>
-
-              {/* List of crust types with collapsible flavors */}
-              {crustTypes.length > 0 ? (
-                <div className="space-y-2">
-                  {crustTypes.map(type => {
-                    const typeFlavors = crustFlavors.filter(f => f.type_id === type.id);
-                    return (
-                      <Collapsible key={type.id} className="border rounded-lg">
-                        <CollapsibleTrigger className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
-                            <span className="font-medium text-sm">{type.name}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {typeFlavors.length} {typeFlavors.length === 1 ? 'sabor' : 'sabores'}
-                            </Badge>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteCrustType(type.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="border-t bg-muted/20">
-                          <div className="p-3 space-y-3">
-                            {/* Add new flavor to this type */}
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={newCrustFlavor.type_id === type.id ? newCrustFlavor.name : ''}
-                                onChange={(e) => setNewCrustFlavor({ type_id: type.id, name: e.target.value, extra_price: newCrustFlavor.type_id === type.id ? newCrustFlavor.extra_price : 0 })}
-                                placeholder="Nome do sabor (ex: Catupiry)"
-                                className="flex-1 h-8 text-sm"
-                                onFocus={() => setNewCrustFlavor(prev => ({ ...prev, type_id: type.id }))}
-                              />
-                              <div className="w-24">
-                                <CurrencyInput
-                                  value={newCrustFlavor.type_id === type.id ? newCrustFlavor.extra_price : 0}
-                                  onChange={(v) => setNewCrustFlavor({ type_id: type.id, name: newCrustFlavor.type_id === type.id ? newCrustFlavor.name : '', extra_price: parseFloat(String(v)) || 0 })}
-                                  className="h-8 text-sm"
-                                  placeholder="+ Preço"
-                                />
-                              </div>
-                              <Button 
-                                size="sm" 
-                                onClick={addCrustFlavor} 
-                                disabled={savingCrusts || !newCrustFlavor.name.trim() || newCrustFlavor.type_id !== type.id} 
-                                className="h-8"
-                              >
-                                {savingCrusts ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                              </Button>
-                            </div>
-
-                            {/* List flavors for this type */}
-                            {typeFlavors.length > 0 ? (
-                              <div className="space-y-1">
-                                {typeFlavors.map(flavor => (
-                                  <div key={flavor.id}>
-                                    {editingCrustFlavor?.id === flavor.id ? (
-                                      <div className="flex items-center gap-2 p-2 rounded-md border bg-background">
-                                        <Input
-                                          value={editingCrustFlavor.name}
-                                          onChange={(e) => setEditingCrustFlavor({ ...editingCrustFlavor, name: e.target.value })}
-                                          className="flex-1 h-8 text-sm"
-                                        />
-                                        <div className="w-24">
-                                          <CurrencyInput
-                                            value={editingCrustFlavor.extra_price}
-                                            onChange={(v) => setEditingCrustFlavor({ ...editingCrustFlavor, extra_price: parseFloat(String(v)) || 0 })}
-                                            className="h-8 text-sm"
-                                          />
-                                        </div>
-                                        <Button 
-                                          size="sm" 
-                                          className="h-8"
-                                          onClick={() => updateCrustFlavor(flavor.id, { 
-                                            name: editingCrustFlavor.name, 
-                                            extra_price: editingCrustFlavor.extra_price 
-                                          })}
-                                        >
-                                          Salvar
-                                        </Button>
-                                        <Button 
-                                          size="sm" 
-                                          variant="ghost" 
-                                          className="h-8"
-                                          onClick={() => setEditingCrustFlavor(null)}
-                                        >
-                                          Cancelar
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <div 
-                                        className="flex items-center justify-between p-2 rounded-md bg-background/50 hover:bg-background cursor-pointer transition-colors"
-                                        onClick={() => setEditingCrustFlavor(flavor)}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm">{flavor.name}</span>
-                                          <span className="text-xs text-muted-foreground">
-                                            {flavor.extra_price > 0 ? `+R$ ${flavor.extra_price.toFixed(2)}` : 'Grátis'}
-                                          </span>
-                                        </div>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className="h-6 w-6"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            deleteCrustFlavor(flavor.id);
-                                          }}
-                                        >
-                                          <Trash2 className="h-3 w-3 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground text-center py-2">
-                                Adicione sabores para esta borda acima
-                              </p>
-                            )}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground border rounded-lg bg-muted/20">
-                  <p className="text-sm">Nenhum tipo de borda cadastrado</p>
-                  <p className="text-xs">Crie um tipo acima para começar</p>
-                </div>
+            <TabsContent value="crusts" className="space-y-3 mt-3">
+              {settings && (
+                <Card className="bg-muted/30 mb-3">
+                  <CardContent className="space-y-3 pt-4">
+                    <div className="flex items-center justify-between">
+                      <div><p className="text-sm font-medium">Borda obrigatória</p><p className="text-xs text-muted-foreground">Cliente deve escolher</p></div>
+                      <Switch checked={settings.crust_is_required} onCheckedChange={(v) => setSettings(p => p ? { ...p, crust_is_required: v } : null)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Tipo de seleção</Label>
+                      <Select value={String(settings.crust_max_selections)} onValueChange={(v) => setSettings(p => p ? { ...p, crust_max_selections: parseInt(v) } : null)}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Seleção única</SelectItem>
+                          <SelectItem value="2">Múltipla (até 2)</SelectItem>
+                          <SelectItem value="3">Múltipla (até 3)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
+              {crusts.map(c => (
+                <div key={c.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
+                  <span className="flex-1 text-sm">{c.name}</span>
+                  <span className="text-sm text-muted-foreground">{c.price_modifier > 0 ? `+R$ ${c.price_modifier.toFixed(2)}` : 'Grátis'}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteOption(c.id, 'crust')}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 p-2 rounded-md border border-dashed">
+                <Input value={newCrust.name} onChange={(e) => setNewCrust(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Catupiry" className="flex-1 h-8 text-sm" />
+                <div className="w-24"><CurrencyInput value={newCrust.price_modifier} onChange={(v) => setNewCrust(p => ({ ...p, price_modifier: parseFloat(String(v)) || 0 }))} className="h-8 text-sm" /></div>
+                <Button size="sm" onClick={() => addOption('crust', newCrust.name, newCrust.price_modifier)} disabled={saving || !newCrust.name.trim()} className="h-8">{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}</Button>
+              </div>
             </TabsContent>
 
-            {/* Rules Tab */}
             <TabsContent value="rules" className="space-y-4 mt-3">
-              {categorySettings && (
+              {settings && (
                 <>
-                  {/* Dough Selection Settings */}
                   <Card className="bg-muted/30">
-                    <CardHeader className="pb-2 pt-3">
-                      <CardTitle className="text-sm">Configuração de Massa</CardTitle>
-                    </CardHeader>
+                    <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Settings className="h-4 w-4" />Meio a Meio</CardTitle></CardHeader>
                     <CardContent className="space-y-3 pt-0">
                       <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Massa obrigatória</p>
-                          <p className="text-xs text-muted-foreground">Cliente deve escolher uma massa</p>
-                        </div>
-                        <Switch
-                          checked={categorySettings.dough_is_required}
-                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, dough_is_required: v } : null)}
-                        />
+                        <div><p className="text-sm font-medium">Permitir meio a meio</p></div>
+                        <Switch checked={settings.allow_half_half} onCheckedChange={(v) => setSettings(p => p ? { ...p, allow_half_half: v } : null)} />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm">Quantidade máxima de massas</Label>
-                        <Select
-                          value={String(categorySettings.dough_max_selections)}
-                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, dough_max_selections: parseInt(v) } : null)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 (seleção única)</SelectItem>
-                            <SelectItem value="2">2 massas</SelectItem>
-                            <SelectItem value="3">3 massas</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Crust Selection Settings */}
-                  <Card className="bg-muted/30">
-                    <CardHeader className="pb-2 pt-3">
-                      <CardTitle className="text-sm">Configuração de Borda</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Borda obrigatória</p>
-                          <p className="text-xs text-muted-foreground">Cliente deve escolher uma borda</p>
-                        </div>
-                        <Switch
-                          checked={categorySettings.crust_is_required}
-                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, crust_is_required: v } : null)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm">Quantidade máxima de bordas</Label>
-                        <Select
-                          value={String(categorySettings.crust_max_selections)}
-                          onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, crust_max_selections: parseInt(v) } : null)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 (seleção única)</SelectItem>
-                            <SelectItem value="2">2 bordas</SelectItem>
-                            <SelectItem value="3">3 bordas</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Half-Half Settings */}
-                  <Card className="bg-muted/30">
-                    <CardHeader className="pb-2 pt-3">
-                      <CardTitle className="text-sm">Configuração Meio a Meio</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Permitir meio a meio</p>
-                          <p className="text-xs text-muted-foreground">Clientes podem montar pizzas com múltiplos sabores</p>
-                        </div>
-                        <Switch
-                          checked={categorySettings.allow_half_half}
-                          onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_half_half: v } : null)}
-                        />
-                      </div>
-                      
-                      {categorySettings.allow_half_half && (
+                      {settings.allow_half_half && (
                         <>
                           <div className="space-y-2">
                             <Label className="text-sm">Máximo de sabores</Label>
-                            <Select
-                              value={String(categorySettings.max_flavors)}
-                              onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, max_flavors: parseInt(v) } : null)}
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
+                            <Select value={String(settings.max_flavors)} onValueChange={(v) => setSettings(p => p ? { ...p, max_flavors: parseInt(v) } : null)}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="2">2 sabores</SelectItem>
                                 <SelectItem value="3">3 sabores</SelectItem>
@@ -862,54 +383,23 @@ export function ProductPizzaSettings({
                               </SelectContent>
                             </Select>
                           </div>
-                          
                           <div className="space-y-2">
                             <Label className="text-sm">Regra de preço</Label>
-                            <Select
-                              value={categorySettings.half_half_pricing_rule}
-                              onValueChange={(v) => setCategorySettings(prev => prev ? { ...prev, half_half_pricing_rule: v } : null)}
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
+                            <Select value={settings.half_half_pricing_rule} onValueChange={(v) => setSettings(p => p ? { ...p, half_half_pricing_rule: v } : null)}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="highest">Preço do maior sabor</SelectItem>
-                                <SelectItem value="average">Média dos preços</SelectItem>
+                                <SelectItem value="highest">Preço do maior</SelectItem>
+                                <SelectItem value="average">Média</SelectItem>
                                 <SelectItem value="sum">Soma proporcional</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label className="text-sm">Desconto meio a meio (%)</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={categorySettings.half_half_discount_percentage}
-                              onChange={(e) => setCategorySettings(prev => prev ? { ...prev, half_half_discount_percentage: parseFloat(e.target.value) || 0 } : null)}
-                              className="h-9"
-                            />
-                          </div>
-                          
-                          <div className="flex items-center justify-between py-2">
-                            <div>
-                              <p className="text-sm font-medium">Permitir sabores repetidos</p>
-                              <p className="text-xs text-muted-foreground">Ex: Calabresa + Calabresa</p>
-                            </div>
-                            <Switch
-                              checked={categorySettings.allow_repeated_flavors}
-                              onCheckedChange={(v) => setCategorySettings(prev => prev ? { ...prev, allow_repeated_flavors: v } : null)}
-                            />
                           </div>
                         </>
                       )}
                     </CardContent>
                   </Card>
-                  
-                  <Button onClick={saveSettings} disabled={savingSettings} className="w-full">
-                    {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Salvar regras
+                  <Button onClick={saveSettings} disabled={saving} className="w-full">
+                    {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar regras
                   </Button>
                 </>
               )}
