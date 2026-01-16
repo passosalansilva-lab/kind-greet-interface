@@ -403,8 +403,8 @@ const canSeeItem = (item: NavItem): boolean => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
-          isElectronApp ? "top-8" : "top-0",
+          "fixed left-0 z-50 w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
+          isElectronApp ? "top-8 h-[calc(100vh-2rem)]" : "top-0 h-full",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
