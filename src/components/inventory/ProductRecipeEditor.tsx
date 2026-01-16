@@ -231,6 +231,31 @@ export function ProductRecipeEditor({
     (ing) => !recipeItems.some((item) => item.ingredient_id === ing.id)
   );
 
+  // Get selected ingredient details for unit display
+  const selectedIngredient = ingredients.find((ing) => ing.id === newItem.ingredient_id);
+  const selectedUnit = selectedIngredient?.unit || '';
+
+  // Format placeholder based on unit type
+  const getPlaceholder = (unit: string) => {
+    const lowerUnit = unit.toLowerCase();
+    if (lowerUnit === 'kg' || lowerUnit === 'quilo' || lowerUnit === 'quilos') {
+      return 'Ex: 0.5';
+    }
+    if (lowerUnit === 'g' || lowerUnit === 'grama' || lowerUnit === 'gramas') {
+      return 'Ex: 200';
+    }
+    if (lowerUnit === 'ml' || lowerUnit === 'mililitro' || lowerUnit === 'mililitros') {
+      return 'Ex: 100';
+    }
+    if (lowerUnit === 'l' || lowerUnit === 'litro' || lowerUnit === 'litros') {
+      return 'Ex: 0.5';
+    }
+    if (lowerUnit === 'un' || lowerUnit === 'unidade' || lowerUnit === 'unidades') {
+      return 'Ex: 2';
+    }
+    return 'Qtd';
+  };
+
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -323,15 +348,22 @@ export function ProductRecipeEditor({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    placeholder="Qtd"
-                    value={newItem.quantity}
-                    onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                    className="w-24"
-                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder={getPlaceholder(selectedUnit)}
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                      className="w-24"
+                    />
+                    {selectedUnit && (
+                      <span className="text-sm text-muted-foreground font-medium min-w-[2rem]">
+                        {selectedUnit}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     onClick={handleAddItem}
                     disabled={saving || !newItem.ingredient_id || !newItem.quantity}
@@ -339,6 +371,11 @@ export function ProductRecipeEditor({
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {selectedIngredient && (
+                  <p className="text-xs text-muted-foreground">
+                    Estoque atual: <span className="font-medium">{selectedIngredient.current_stock?.toFixed(2) || 0} {selectedUnit}</span>
+                  </p>
+                )}
               </div>
             )}
 
