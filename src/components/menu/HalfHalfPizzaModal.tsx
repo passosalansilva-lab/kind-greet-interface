@@ -863,28 +863,42 @@ export function HalfHalfPizzaModal({
 
                   {crustOptions.length > 0 && (
                     <div>
-                      <h3 className="font-semibold mb-3">Borda</h3>
-                      <RadioGroup
-                        onValueChange={(value) => {
-                          const [groupId, optionId] = value.split("::");
-                          const group = crustOptions.find((g) => g.id === groupId);
-                          const option = group?.options?.find((o) => o.id === optionId);
-                          if (group && option) {
-                            handleCrustChange(
-                              group.id,
-                              group.name,
-                              option.id,
-                              option.name,
-                              option.price_modifier,
-                            );
-                          }
-                        }}
-                      >
-                        {crustOptions.map((group) =>
-                          group.options?.map((option) => (
+                      <h3 className="font-semibold mb-3">Borda (opcional)</h3>
+                      {crustOptions.map((group) =>
+                        group.options?.map((option) => {
+                          const isSelected = selectedOptions.some((opt) => opt.option_id === option.id);
+                          return (
                             <div key={option.id} className="flex items-center space-x-2 py-2">
-                              <RadioGroupItem value={`${group.id}::${option.id}`} id={option.id} />
-                              <Label htmlFor={option.id} className="flex-1 cursor-pointer">
+                              <Checkbox
+                                id={`crust-${option.id}`}
+                                checked={isSelected}
+                                onCheckedChange={() => {
+                                  if (isSelected) {
+                                    // Desmarcar
+                                    setSelectedOptions((prev) =>
+                                      prev.filter((opt) => opt.option_id !== option.id)
+                                    );
+                                  } else {
+                                    // Marcar (e desmarcar outras bordas do mesmo grupo)
+                                    setSelectedOptions((prev) => {
+                                      const withoutOtherCrusts = prev.filter(
+                                        (opt) => opt.group_id !== group.id
+                                      );
+                                      return [
+                                        ...withoutOtherCrusts,
+                                        {
+                                          group_id: group.id,
+                                          group_name: group.name,
+                                          option_id: option.id,
+                                          option_name: option.name,
+                                          price_modifier: allowCrustExtraPrice ? option.price_modifier : 0,
+                                        },
+                                      ];
+                                    });
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={`crust-${option.id}`} className="flex-1 cursor-pointer">
                                 {option.name}
                                 {allowCrustExtraPrice && option.price_modifier > 0 && (
                                   <span className="ml-2 text-primary font-semibold">
@@ -893,9 +907,9 @@ export function HalfHalfPizzaModal({
                                 )}
                               </Label>
                             </div>
-                          )),
-                        )}
-                      </RadioGroup>
+                          );
+                        }),
+                      )}
                     </div>
                   )}
 
@@ -947,26 +961,37 @@ export function HalfHalfPizzaModal({
         </div>
 
         <div className="border-t p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <Label>Quantidade</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-semibold">{quantity}</span>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => setQuantity(quantity + 1)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+          {/* Mostrar total na tela de sabores */}
+          {step === "flavors" && selectedFlavors.length > 0 && (
+            <div className="flex items-center justify-between text-lg font-bold">
+              <span>Total</span>
+              <span className="text-primary">R$ {totalPrice.toFixed(2)}</span>
             </div>
-          </div>
+          )}
+
+          {/* Mostrar quantidade apenas na tela de opções */}
+          {step === "options" && (
+            <div className="flex items-center justify-between">
+              <Label>Quantidade</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="w-12 text-center font-semibold">{quantity}</span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => setQuantity(quantity + 1)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           {step === "options" && (
             <div className="flex flex-col gap-1">
