@@ -60,6 +60,8 @@ import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFavorites } from '@/hooks/useFavorites';
 import { applyCompanyBranding } from '@/hooks/useCompanyColors';
+import { PromotionsBanner } from '@/components/menu/PromotionsBanner';
+import { PromotionalProductsSection, getProductPromotionDiscount } from '@/components/menu/PromotionalProductsSection';
 
 interface Company {
   id: string;
@@ -1763,53 +1765,34 @@ function PublicMenuContent() {
         </div>
       )}
 
-      {/* Promotions Banner - Horizontal Scroll */}
+      {/* Promotions Banner - Carousel */}
       {promotions.length > 0 && !searchQuery && !selectedCategory && (
-        <div className="mt-6">
-          <div className="flex items-center gap-2 px-4 mb-3">
-            <Tag className="h-5 w-5 text-primary" />
-            <h2 className="text-base font-display font-bold">Promoções</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-            {promotions.map((promo) => (
-              <div 
-                key={promo.id}
-                className="flex-shrink-0 w-72 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20"
-              >
-                <div className="flex gap-3">
-                  {promo.image_url ? (
-                    <OptimizedImage
-                      src={promo.image_url}
-                      alt={promo.name}
-                      className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
-                      containerClassName="w-16 h-16 rounded-xl flex-shrink-0"
-                      fallback={
-                        <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                          <Tag className="h-6 w-6 text-primary" />
-                        </div>
-                      }
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Tag className="h-6 w-6 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <Badge className="mb-1.5 bg-primary/90 text-primary-foreground">
-                      {promo.discount_type === 'percentage' 
-                        ? `${promo.discount_value}% OFF` 
-                        : `R$ ${Number(promo.discount_value).toFixed(2)} OFF`}
-                    </Badge>
-                    <h3 className="font-semibold text-sm truncate">{promo.name}</h3>
-                    {promo.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{promo.description}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PromotionsBanner 
+          promotions={promotions} 
+          onPromotionClick={(promo) => {
+            // If promotion is linked to a product, open it
+            if (promo.product_id) {
+              const product = products.find(p => p.id === promo.product_id);
+              if (product) handleProductClick(product);
+            }
+            // If linked to a category, scroll to it
+            else if (promo.category_id) {
+              const categoryElement = document.getElementById(`category-${promo.category_id}`);
+              if (categoryElement) {
+                categoryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }
+          }}
+        />
+      )}
+
+      {/* Promotional Products Section */}
+      {promotions.length > 0 && !searchQuery && !selectedCategory && (
+        <PromotionalProductsSection
+          promotions={promotions}
+          products={products}
+          onProductClick={handleProductClick}
+        />
       )}
 
       {/* Featured Products - Horizontal Scroll */}
@@ -1892,21 +1875,23 @@ function PublicMenuContent() {
                  const isPizzaWithSizes = !!product.category_id && 
                    pizzaCategoryIdsArray.includes(product.category_id) && 
                    !!pizzaCategoryBasePrices[product.id];
+                 const promotionDiscount = getProductPromotionDiscount(product, promotions);
                  return (
                    <ProductCard
-                     key={product.id}
-                     product={{ ...product, price: displayPrice }}
-                     onClick={() => handleProductClick(product)}
-                     onQuickAdd={(e) => handleQuickAdd(product, e)}
-                     quantityInCart={getProductQuantityInCart(product.id)}
-                     isRecentlyAdded={recentlyAddedId === product.id}
-                     isFavorite={favoriteProductIds.includes(product.id)}
-                     onToggleFavorite={(e) => handleToggleFavoriteClick(product.id, e)}
-                     isCombo={isCombo}
-                     isSelectableCombo={isSelectableCombo}
-                     isAcaiProduct={isAcaiWithSizes}
-                     isPizzaWithSizes={isPizzaWithSizes}
-                   />
+                      key={product.id}
+                      product={{ ...product, price: displayPrice }}
+                      onClick={() => handleProductClick(product)}
+                      onQuickAdd={(e) => handleQuickAdd(product, e)}
+                      quantityInCart={getProductQuantityInCart(product.id)}
+                      isRecentlyAdded={recentlyAddedId === product.id}
+                      isFavorite={favoriteProductIds.includes(product.id)}
+                      onToggleFavorite={(e) => handleToggleFavoriteClick(product.id, e)}
+                      isCombo={isCombo}
+                      isSelectableCombo={isSelectableCombo}
+                      isAcaiProduct={isAcaiWithSizes}
+                      isPizzaWithSizes={isPizzaWithSizes}
+                      promotionDiscount={promotionDiscount}
+                    />
                  );
                })}
              </div>
@@ -1928,20 +1913,22 @@ function PublicMenuContent() {
                  const isAcaiWithSizes = !!product.category_id && 
                    acaiCategoryIds.includes(product.category_id) && 
                    !!acaiCategoryBasePrices[product.category_id];
+                 const promotionDiscount = getProductPromotionDiscount(product, promotions);
                  return (
                    <ProductCard
-                     key={product.id}
-                     product={{ ...product, price: displayPrice }}
-                     onClick={() => handleProductClick(product)}
-                     onQuickAdd={(e) => handleQuickAdd(product, e)}
-                     quantityInCart={getProductQuantityInCart(product.id)}
-                     isRecentlyAdded={recentlyAddedId === product.id}
-                     isFavorite={favoriteProductIds.includes(product.id)}
-                     onToggleFavorite={(e) => handleToggleFavoriteClick(product.id, e)}
-                     isCombo={comboProductIds.has(product.id)}
-                     isSelectableCombo={isSelectableCombo}
-                     isAcaiProduct={isAcaiWithSizes}
-                   />
+                      key={product.id}
+                      product={{ ...product, price: displayPrice }}
+                      onClick={() => handleProductClick(product)}
+                      onQuickAdd={(e) => handleQuickAdd(product, e)}
+                      quantityInCart={getProductQuantityInCart(product.id)}
+                      isRecentlyAdded={recentlyAddedId === product.id}
+                      isFavorite={favoriteProductIds.includes(product.id)}
+                      onToggleFavorite={(e) => handleToggleFavoriteClick(product.id, e)}
+                      isCombo={comboProductIds.has(product.id)}
+                      isSelectableCombo={isSelectableCombo}
+                      isAcaiProduct={isAcaiWithSizes}
+                      promotionDiscount={promotionDiscount}
+                    />
                  );
                })}
            </div>
@@ -2291,6 +2278,7 @@ function ProductCard({
   isSelectableCombo = false,
   isAcaiProduct = false,
   isPizzaWithSizes = false,
+  promotionDiscount,
 }: {
   product: Product;
   onClick: () => void;
@@ -2303,6 +2291,7 @@ function ProductCard({
   isSelectableCombo?: boolean;
   isAcaiProduct?: boolean;
   isPizzaWithSizes?: boolean;
+  promotionDiscount?: { hasDiscount: boolean; discountText: string | null; discountedPrice: number };
 }) {
   const hasOptions = product.product_options && product.product_options.length > 0;
 
@@ -2354,6 +2343,14 @@ function ProductCard({
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Store className="h-8 w-8 text-muted-foreground/30" />
+            </div>
+          )}
+
+          {/* Promotion Discount Badge */}
+          {promotionDiscount?.hasDiscount && promotionDiscount.discountText && (
+            <div className="absolute top-1 left-1 px-2 py-0.5 rounded-lg bg-destructive text-destructive-foreground text-[10px] font-bold shadow-lg flex items-center gap-0.5">
+              <Tag className="h-3 w-3" />
+              {promotionDiscount.discountText} OFF
             </div>
           )}
 
@@ -2414,6 +2411,15 @@ function ProductCard({
                     <span className="text-base font-bold text-primary">
                       A partir de R$ {Number(product.price).toFixed(2)}
                     </span>
+                  ) : promotionDiscount?.hasDiscount ? (
+                    <>
+                      <span className="text-xs text-muted-foreground line-through">
+                        R$ {Number(product.price).toFixed(2)}
+                      </span>
+                      <span className="text-base font-bold text-primary">
+                        R$ {promotionDiscount.discountedPrice.toFixed(2)}
+                      </span>
+                    </>
                   ) : product.promotional_price && Number(product.promotional_price) > 0 ? (
                     <>
                       <span className="text-xs text-muted-foreground line-through">
