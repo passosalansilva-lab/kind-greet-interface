@@ -411,14 +411,14 @@ const canSeeItem = (item: NavItem): boolean => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-20 items-center justify-between px-4 border-b border-sidebar-border">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2 min-w-0">
               <img 
                 src={logoUrl} 
                 alt="Cardápio On" 
-                className="h-16 w-auto object-contain"
+                className="h-16 w-auto object-contain flex-shrink-0"
               />
               {isElectronApp && (
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded">
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded whitespace-nowrap flex-shrink-0">
                   Desktop
                 </span>
               )}

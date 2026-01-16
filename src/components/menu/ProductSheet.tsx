@@ -939,7 +939,8 @@ export function ProductSheet({ product, open, onClose, primaryColor }: ProductSh
                           const isSelected = selectedOptions.some((o) => o.optionId === option.id);
                           const currentCount = selectedOptions.filter((o) => o.groupId === group.id).length;
                           const maxAllowed = group.selection_type === 'half_half' ? 2 : group.max_selections;
-                          const maxReached = currentCount >= maxAllowed && !isSelected;
+                          // For single selection, never disable - user can always change selection
+                          const maxReached = group.selection_type === 'single' ? false : (currentCount >= maxAllowed && !isSelected);
                           const isHalfHalf = group.selection_type === 'half_half';
                           const priceDisplay = isHalfHalf ? option.price_modifier / 2 : option.price_modifier;
 
