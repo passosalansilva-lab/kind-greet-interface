@@ -97,6 +97,11 @@ export default function Dashboard() {
   const DESKTOP_APP_DOWNLOAD_URL =
     'https://github.com/passosalansilva-lab/archive/releases/download/cardpon/CardpOnDelivery.exe';
 
+  // Detect if running inside Electron (desktop app)
+  const isElectronApp = typeof navigator !== 'undefined' && 
+    (navigator.userAgent.toLowerCase().includes('electron') || 
+     (window as any).process?.versions?.electron);
+
   const [desktopAppDownloaded, setDesktopAppDownloaded] = useState(() => {
     try {
       return localStorage.getItem('desktop-app-downloaded') === 'true';
@@ -421,8 +426,8 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Desktop App Download Card */}
-        {companyId && companyStatus === 'approved' && !desktopAppDownloaded && (
+        {/* Desktop App Download Card - hidden when running inside Electron */}
+        {companyId && companyStatus === 'approved' && !desktopAppDownloaded && !isElectronApp && (
           <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
             <CardContent className="py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
