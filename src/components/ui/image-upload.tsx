@@ -16,6 +16,14 @@ interface ImageUploadProps {
   companyId?: string;
 }
 
+// Função para calcular hash simples do arquivo
+async function calculateFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function ImageUpload({
   value,
   onChange,
@@ -34,6 +42,33 @@ export function ImageUpload({
     square: 'aspect-square',
     video: 'aspect-video',
     banner: 'aspect-[3/1]',
+  };
+
+  // Verificar se já existe uma imagem com o mesmo hash
+  const checkForDuplicate = async (hash: string): Promise<string | null> => {
+    try {
+      const { data: files, error } = await supabase.storage
+        .from('images')
+        .list(folder, {
+          search: hash.substring(0, 16), // Busca pelo início do hash no nome
+        });
+
+      if (error || !files || files.length === 0) return null;
+
+      // Verifica se algum arquivo tem o hash no nome
+      const existingFile = files.find(f => f.name.includes(hash.substring(0, 16)));
+      
+      if (existingFile) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('images')
+          .getPublicUrl(`${folder}/${existingFile.name}`);
+        return publicUrl;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,8 +97,25 @@ export function ImageUpload({
 
     setUploading(true);
     try {
+      // Calcular hash do arquivo para detectar duplicatas
+      const fileHash = await calculateFileHash(file);
+      
+      // Verificar se já existe
+      const existingUrl = await checkForDuplicate(fileHash);
+      
+      if (existingUrl) {
+        // Imagem já existe, usar a existente
+        onChange(existingUrl);
+        toast({
+          title: 'Imagem já existe',
+          description: 'Usando a imagem existente da galeria.',
+        });
+        return;
+      }
+
+      // Gerar nome único com hash para identificação futura
       const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${folder}/${fileHash.substring(0, 16)}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('images')
