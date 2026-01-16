@@ -346,10 +346,19 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
       const crustMaxSelections = pizzaSettings.crust_max_selections ?? 1;
       const crustIsRequired = pizzaSettings.crust_is_required ?? false;
 
-      const groups: OptionGroup[] = (groupsData || []).map((group: any) => ({
+      // Filter out groups that conflict with pizza system groups (Borda, Massa, Tamanho)
+      // These are now managed through the pizza configuration system
+      const pizzaSystemGroupNames = ['borda', 'massa', 'tamanho', 'tipo de massa', 'bordas', 'massas', 'tamanhos'];
+      const filteredGroupsData = isPizzaCategory 
+        ? (groupsData || []).filter((group: any) => 
+            !pizzaSystemGroupNames.includes((group.name || '').toLowerCase().trim())
+          )
+        : (groupsData || []);
+
+      const groups: OptionGroup[] = filteredGroupsData.map((group: any) => ({
         ...group,
         free_quantity_limit: group.free_quantity_limit ?? 0,
-        extra_unit_price: group.extra_unit_price ?? 0,
+        extra_unit_price: group.extra_price ?? 0,
         options: (optionsData || [])
           .filter((opt: any) => opt.group_id === group.id)
           .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
