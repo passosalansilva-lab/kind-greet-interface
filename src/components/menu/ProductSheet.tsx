@@ -21,6 +21,15 @@ import { useAcaiOptionsCache } from '@/hooks/useAcaiOptionsCache';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { ProductTagsBadges } from './ProductTagsEditor';
+import { isSizeInPromotion, calculateSizeDiscountedPrice } from './PromotionalProductsSection';
+
+interface PromotionData {
+  id: string;
+  discount_type: string;
+  discount_value: number;
+  apply_to_all_sizes?: boolean | null;
+  selected_size_ids?: string[];
+}
 
 interface ProductOption {
   id: string;
@@ -128,7 +137,9 @@ function OptionCard({
   disabled,
   selectionType,
   priceDisplay,
-  showHalfPrice
+  showHalfPrice,
+  originalPrice,
+  hasDiscount
 }: { 
   option: ProductOption; 
   isSelected: boolean; 
@@ -137,8 +148,31 @@ function OptionCard({
   selectionType: 'single' | 'multiple';
   priceDisplay: number;
   showHalfPrice?: boolean;
+  originalPrice?: number;
+  hasDiscount?: boolean;
 }) {
   const hasImage = option.image_url && option.image_url.trim() !== '';
+  
+  const renderPrice = () => {
+    if (priceDisplay === 0 && !hasDiscount) return null;
+    
+    return (
+      <div className="flex items-center gap-1.5">
+        {hasDiscount && originalPrice !== undefined && originalPrice !== priceDisplay && (
+          <span className="text-xs text-muted-foreground line-through whitespace-nowrap">
+            R$ {originalPrice.toFixed(2)}
+          </span>
+        )}
+        <span className={cn(
+          "text-sm font-bold whitespace-nowrap",
+          hasDiscount ? "text-green-600" : priceDisplay > 0 ? "text-primary" : "text-green-600"
+        )}>
+          {!hasDiscount && priceDisplay > 0 ? '+' : ''}R$ {priceDisplay.toFixed(2)}
+          {showHalfPrice && ' (½)'}
+        </span>
+      </div>
+    );
+  };
   
   return (
     <button
@@ -152,9 +186,15 @@ function OptionCard({
           ? "border-primary bg-primary/5 shadow-md"
           : "border-border hover:border-primary/40 hover:bg-muted/30",
         disabled && "opacity-50 cursor-not-allowed",
+        hasDiscount && "ring-2 ring-green-500/20",
         hasImage ? "p-0" : "px-4 py-3"
       )}
     >
+      {hasDiscount && (
+        <div className="absolute top-1 right-1 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+          PROMO
+        </div>
+      )}
       {hasImage ? (
         <div className="flex items-center">
           <div className="w-16 h-16 flex-shrink-0 bg-muted">
@@ -175,15 +215,7 @@ function OptionCard({
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {priceDisplay !== 0 && (
-                <span className={cn(
-                  "text-sm font-bold whitespace-nowrap",
-                  priceDisplay > 0 ? "text-primary" : "text-green-600"
-                )}>
-                  {priceDisplay > 0 ? '+' : ''}R$ {priceDisplay.toFixed(2)}
-                  {showHalfPrice && ' (½)'}
-                </span>
-              )}
+              {renderPrice()}
               <div className={cn(
                 "w-5 h-5 border-2 flex items-center justify-center flex-shrink-0 transition-colors",
                 selectionType === 'single' ? "rounded-full" : "rounded-md",
@@ -221,15 +253,7 @@ function OptionCard({
               )}
             </div>
           </div>
-          {priceDisplay !== 0 && (
-            <span className={cn(
-              "text-sm font-bold whitespace-nowrap flex-shrink-0",
-              priceDisplay > 0 ? "text-primary" : "text-green-600"
-            )}>
-              {priceDisplay > 0 ? '+' : ''}R$ {priceDisplay.toFixed(2)}
-              {showHalfPrice && ' (½)'}
-            </span>
-          )}
+          {renderPrice()}
         </div>
       )}
     </button>
@@ -246,13 +270,77 @@ export function ProductSheet({ product, open, onClose, primaryColor, promotionId
   const [loading, setLoading] = useState(false);
   const [ingredients, setIngredients] = useState<ProductIngredient[]>([]);
   const [removedIngredients, setRemovedIngredients] = useState<Set<string>>(new Set());
+  const [promotionData, setPromotionData] = useState<PromotionData | null>(null);
 
   useEffect(() => {
     if (open && product) {
       loadOptionGroups();
       loadIngredients();
+      if (promotionId) {
+        loadPromotionData(promotionId);
+      } else {
+        setPromotionData(null);
+      }
     }
-  }, [open, product?.id]);
+  }, [open, product?.id, promotionId]);
+
+  // Load promotion data including selected sizes
+  const loadPromotionData = async (promoId: string) => {
+    try {
+      // Use a flexible query that works even if apply_to_all_sizes column doesn't exist yet
+      const { data: promo } = await supabase
+        .from('promotions')
+        .select('id, discount_type, discount_value')
+        .eq('id', promoId)
+        .single();
+
+      if (!promo) {
+        setPromotionData(null);
+        return;
+      }
+
+      // Try to get apply_to_all_sizes separately (column might not exist yet)
+      let applyToAllSizes = true;
+      try {
+        const { data: fullPromo } = await supabase
+          .from('promotions')
+          .select('*')
+          .eq('id', promoId)
+          .single();
+        if (fullPromo && 'apply_to_all_sizes' in fullPromo) {
+          applyToAllSizes = (fullPromo as any).apply_to_all_sizes !== false;
+        }
+      } catch {
+        // Column doesn't exist, default to true
+      }
+
+      // Try to load selected sizes (table might not exist yet)
+      let selectedSizeIds: string[] = [];
+      try {
+        const { data: sizes, error: sizesError } = await supabase
+          .from('promotion_sizes' as any)
+          .select('product_option_id')
+          .eq('promotion_id', promoId);
+        
+        if (!sizesError && sizes) {
+          selectedSizeIds = sizes.map((s: any) => s.product_option_id);
+        }
+      } catch {
+        // Table doesn't exist yet, use empty array
+      }
+
+      setPromotionData({
+        id: promo.id,
+        discount_type: promo.discount_type,
+        discount_value: promo.discount_value,
+        apply_to_all_sizes: applyToAllSizes,
+        selected_size_ids: selectedSizeIds,
+      });
+    } catch (error) {
+      console.error('Error loading promotion data:', error);
+      setPromotionData(null);
+    }
+  };
 
   const loadIngredients = async () => {
     if (!product) return;
@@ -831,6 +919,10 @@ export function ProductSheet({ product, open, onClose, primaryColor, promotionId
     );
 
     if (!sizeGroup) {
+      // No size group - apply promotion discount to base price if applicable
+      if (promotionData) {
+        return calculateSizeDiscountedPrice(baseProductPrice, promotionData as any);
+      }
       return baseProductPrice;
     }
 
@@ -842,11 +934,22 @@ export function ProductSheet({ product, open, onClose, primaryColor, promotionId
     const isAcaiSizeGroup = sizeGroup.id === 'acai-size';
     const isPizzaSizeGroup = sizeGroup.id === 'pizza-size';
 
+    let sizePrice: number;
     if (isAcaiSizeGroup || isPizzaSizeGroup) {
-      return selectedSize.priceModifier;
+      sizePrice = selectedSize.priceModifier;
+    } else {
+      sizePrice = baseProductPrice + selectedSize.priceModifier;
     }
 
-    return baseProductPrice + selectedSize.priceModifier;
+    // Apply promotion discount if this size is eligible
+    if (promotionData) {
+      const isEligible = isSizeInPromotion(selectedSize.optionId, promotionData as any);
+      if (isEligible) {
+        return calculateSizeDiscountedPrice(sizePrice, promotionData as any, selectedSize.optionId);
+      }
+    }
+
+    return sizePrice;
   };
 
   const itemTotal = (getBasePriceForDisplay() + optionsTotal) * quantity;
@@ -1040,7 +1143,19 @@ export function ProductSheet({ product, open, onClose, primaryColor, promotionId
                           // For single selection, never disable - user can always change selection
                           const maxReached = group.selection_type === 'single' ? false : (currentCount >= maxAllowed && !isSelected);
                           const isHalfHalf = group.selection_type === 'half_half';
-                          const priceDisplay = isHalfHalf ? option.price_modifier / 2 : option.price_modifier;
+                          
+                          // Check if this is a size group and if promotion applies to this size
+                          const isSizeGroup = group.name.toLowerCase() === 'tamanho';
+                          const sizeHasDiscount = isSizeGroup && promotionData && isSizeInPromotion(option.id, promotionData as any);
+                          
+                          let priceDisplay = isHalfHalf ? option.price_modifier / 2 : option.price_modifier;
+                          let originalPrice: number | undefined;
+                          
+                          // If this size has a discount, calculate the discounted price
+                          if (sizeHasDiscount && promotionData) {
+                            originalPrice = priceDisplay;
+                            priceDisplay = calculateSizeDiscountedPrice(priceDisplay, promotionData as any, option.id);
+                          }
 
                           return (
                             <OptionCard
@@ -1058,6 +1173,8 @@ export function ProductSheet({ product, open, onClose, primaryColor, promotionId
                               selectionType={group.selection_type === 'single' ? 'single' : 'multiple'}
                               priceDisplay={priceDisplay}
                               showHalfPrice={isHalfHalf}
+                              originalPrice={originalPrice}
+                              hasDiscount={sizeHasDiscount}
                             />
                           );
                         })}
