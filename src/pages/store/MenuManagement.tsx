@@ -119,7 +119,8 @@ export default function MenuManagement() {
     open: boolean;
     product: Product | null;
     categoryId: string | null;
-  }>({ open: false, product: null, categoryId: null });
+    sourceProductIdForCopy?: string | null;
+  }>({ open: false, product: null, categoryId: null, sourceProductIdForCopy: null });
 
   // Draft banner state
   const [pendingProductDraft, setPendingProductDraft] = useState<{ name: string } | null>(null);
@@ -646,12 +647,19 @@ export default function MenuManagement() {
 
   const duplicateProduct = (product: Product) => {
     // Create a copy with modified name to indicate it's a duplicate
+    // Store the original product ID to copy pizza configurations
+    const originalProductId = product.id;
     const duplicatedProduct: Product = {
       ...product,
       id: '', // Clear ID to create new product
       name: `${product.name} (cópia)`,
     };
-    setProductSheet({ open: true, product: duplicatedProduct, categoryId: product.category_id });
+    setProductSheet({ 
+      open: true, 
+      product: duplicatedProduct, 
+      categoryId: product.category_id,
+      sourceProductIdForCopy: originalProductId,
+    });
   };
 
   const toggleProductActive = async (product: Product) => {
@@ -1241,7 +1249,8 @@ export default function MenuManagement() {
           categoryId={productSheet.categoryId}
           companyId={companyId || ''}
           isPizzaCategory={productSheet.categoryId ? pizzaCategoryIds.includes(productSheet.categoryId) : false}
-          onClose={() => setProductSheet({ open: false, product: null, categoryId: null })}
+          sourceProductIdForCopy={productSheet.sourceProductIdForCopy}
+          onClose={() => setProductSheet({ open: false, product: null, categoryId: null, sourceProductIdForCopy: null })}
           onSaved={loadData}
         />
 

@@ -100,6 +100,8 @@ interface ProductFormSheetProps {
   categoryId: string | null;
   companyId: string;
   isPizzaCategory?: boolean;
+  /** ID of source product to copy pizza settings from (used when duplicating) */
+  sourceProductIdForCopy?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -432,6 +434,7 @@ export function ProductFormSheet({
   categoryId,
   companyId,
   isPizzaCategory = false,
+  sourceProductIdForCopy = null,
   onClose,
   onSaved,
 }: ProductFormSheetProps) {
@@ -785,10 +788,15 @@ export function ProductFormSheet({
         productId = data.id;
         setCurrentProductId(productId);
         handleClearDraft(); // Clear draft on successful creation
+
+        // If duplicating a pizza product, copy the pizza configurations
+        if (isPizzaCategory && sourceProductIdForCopy && productId) {
+          await copyPizzaConfigFromSource(productId, sourceProductIdForCopy);
+        }
       }
 
-      // Save pizza settings if applicable
-      if (isPizzaCategory && productId) {
+      // Save pizza settings if applicable (for new products without source, or updates)
+      if (isPizzaCategory && productId && !sourceProductIdForCopy) {
         await savePizzaSettings(productId);
       }
 
@@ -829,6 +837,94 @@ export function ProductFormSheet({
       }
     } catch (error) {
       console.error('Error saving pizza settings:', error);
+    }
+  };
+
+  // Copy pizza configuration from source product (used when duplicating)
+  const copyPizzaConfigFromSource = async (newProductId: string, sourceProductId: string) => {
+    try {
+      // 1. Copy pizza_product_settings
+      const { data: sourceSettings } = await supabase
+        .from('pizza_product_settings')
+        .select('*')
+        .eq('product_id', sourceProductId)
+        .maybeSingle();
+
+      if (sourceSettings) {
+        const { id, product_id, created_at, updated_at, ...settingsToCopy } = sourceSettings as any;
+        await supabase.from('pizza_product_settings').upsert({
+          ...settingsToCopy,
+          product_id: newProductId,
+        });
+      }
+
+      // 2. Copy product_option_groups and their options
+      const { data: sourceGroups } = await supabase
+        .from('product_option_groups')
+        .select('*')
+        .eq('product_id', sourceProductId)
+        .order('sort_order');
+
+      if (sourceGroups && sourceGroups.length > 0) {
+        for (const group of sourceGroups) {
+          const { id: oldGroupId, product_id, created_at, updated_at, ...groupToCopy } = group as any;
+          
+          // Create new group
+          const { data: newGroup, error: groupError } = await supabase
+            .from('product_option_groups')
+            .insert({
+              ...groupToCopy,
+              product_id: newProductId,
+            })
+            .select('id')
+            .single();
+
+          if (groupError || !newGroup) {
+            console.error('Error copying group:', groupError);
+            continue;
+          }
+
+          // Copy options for this group
+          const { data: sourceOptions } = await supabase
+            .from('product_options')
+            .select('*')
+            .eq('product_id', sourceProductId)
+            .eq('group_id', oldGroupId)
+            .eq('is_available', true)
+            .order('sort_order');
+
+          if (sourceOptions && sourceOptions.length > 0) {
+            const optionsToCopy = sourceOptions.map((opt: any) => {
+              const { id, product_id, group_id, created_at, updated_at, ...optData } = opt;
+              return {
+                ...optData,
+                product_id: newProductId,
+                group_id: newGroup.id,
+              };
+            });
+
+            const { error: optionsError } = await supabase
+              .from('product_options')
+              .insert(optionsToCopy);
+
+            if (optionsError) {
+              console.error('Error copying options:', optionsError);
+            }
+          }
+        }
+      }
+
+      toast({ 
+        title: 'Configurações copiadas', 
+        description: 'Tamanhos, massas e bordas foram duplicados.',
+      });
+    } catch (error) {
+      console.error('Error copying pizza config:', error);
+      toast({
+        title: 'Aviso',
+        description: 'Produto criado, mas algumas configurações não foram copiadas.',
+        variant: 'destructive',
+      });
     }
   };
 
