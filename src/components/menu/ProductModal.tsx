@@ -619,11 +619,15 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
   });
 
   const handleSingleSelect = (group: OptionGroup, option: ProductOption) => {
-    const isCurrentlySelected = selectedOptions.some((o) => o.optionId === option.id);
+    const isCurrentlySelected = selectedOptions.some(
+      (o) => o.groupId === group.id && o.optionId === option.id
+    );
     
     // If group is NOT required and option is already selected, allow deselection
     if (!group.is_required && isCurrentlySelected) {
-      let filtered = selectedOptions.filter((o) => o.optionId !== option.id);
+      let filtered = selectedOptions.filter(
+        (o) => !(o.groupId === group.id && o.optionId === option.id)
+      );
       
       if (group.id === 'acai-size') {
         filtered = filtered.filter((o) => !o.groupId.startsWith('acai-group-'));
@@ -652,10 +656,14 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
   };
 
   const handleMultipleToggle = (group: OptionGroup, option: ProductOption) => {
-    const currentlySelected = selectedOptions.some((o) => o.optionId === option.id);
+    const currentlySelected = selectedOptions.some(
+      (o) => o.groupId === group.id && o.optionId === option.id
+    );
 
     if (currentlySelected) {
-      setSelectedOptions((prev) => prev.filter((o) => o.optionId !== option.id));
+      setSelectedOptions((prev) =>
+        prev.filter((o) => !(o.groupId === group.id && o.optionId === option.id))
+      );
     } else {
       const groupCount = selectedOptions.filter((o) => o.groupId === group.id).length;
       const maxAllowed = group.selection_type === 'half_half' ? 2 : group.max_selections;
@@ -914,7 +922,9 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
                         group.options.length > 4 && !groupHasImages && "sm:grid sm:grid-cols-2 sm:gap-1.5 sm:space-y-0"
                       )}>
                         {group.options.map((option) => {
-                          const isSelected = selectedOptions.some((o) => o.optionId === option.id);
+                          const isSelected = selectedOptions.some(
+                            (o) => o.groupId === group.id && o.optionId === option.id
+                          );
                           const currentCount = selectedOptions.filter((o) => o.groupId === group.id).length;
                           const maxAllowed = group.selection_type === 'half_half' ? 2 : group.max_selections;
                           // For single selection, never disable - user can always change selection
