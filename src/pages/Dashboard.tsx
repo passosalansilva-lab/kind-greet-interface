@@ -95,7 +95,7 @@ export default function Dashboard() {
   const [exporting, setExporting] = useState(false);
 
   const DESKTOP_APP_DOWNLOAD_URL =
-    'https://github.com/passosalansilva-lab/archive/releases/download/untagged-62a4d689b36cb89f7514/CardpOnDelivery.exe';
+    'https://github.com/passosalansilva-lab/archive/releases/download/cardpon/CardpOnDelivery.exe';
 
   const [desktopAppDownloaded, setDesktopAppDownloaded] = useState(() => {
     try {
