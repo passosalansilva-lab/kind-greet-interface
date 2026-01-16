@@ -122,7 +122,6 @@ export function usePizzaConfig(companyId: string | null): PizzaConfig {
           table: 'pizza_category_settings',
         },
         () => {
-          // Recarrega as configurações quando houver mudança
           loadPizzaConfig();
         }
       )
@@ -142,6 +141,19 @@ export function usePizzaConfig(companyId: string | null): PizzaConfig {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [companyId, loadPizzaConfig]);
+
+  // Fallback: polling leve para garantir atualização mesmo se realtime não entregar eventos
+  useEffect(() => {
+    if (!companyId) return;
+
+    const interval = window.setInterval(() => {
+      loadPizzaConfig();
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
     };
   }, [companyId, loadPizzaConfig]);
 

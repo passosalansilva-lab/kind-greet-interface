@@ -1191,7 +1191,8 @@ function PublicMenuContent() {
   // Config de meio a meio (por categoria)
   const halfHalfCategorySetting = Object.values(pizzaConfig.categorySettings || {})[0];
   const hasHalfHalfEnabled = !!halfHalfCategorySetting?.allow_half_half;
-  const canShowHalfHalf = pizzaProducts.length >= 2 && hasHalfHalfEnabled;
+  const hasEnoughFlavorsForHalfHalf = pizzaProducts.length >= 2;
+  const canShowHalfHalf = hasHalfHalfEnabled;
 
   const scrollToCategory = (categoryId: string | null) => {
     setSelectedCategory(categoryId);
@@ -1811,12 +1812,16 @@ function PublicMenuContent() {
       {canShowHalfHalf && (
         <div className="mt-6 px-4">
           <button
-            onClick={() => setHalfHalfModalOpen(true)}
+            onClick={() => {
+              if (!hasEnoughFlavorsForHalfHalf) return;
+              setHalfHalfModalOpen(true);
+            }}
+            disabled={!hasEnoughFlavorsForHalfHalf}
             className={cn(
               "w-full p-6 rounded-2xl border overflow-hidden relative",
               "bg-gradient-to-br from-primary/10 via-background to-secondary/10",
-              "border-primary/20 hover:border-primary/40 transition-all",
-              "active:scale-[0.98] group"
+              "border-primary/20 transition-all",
+              hasEnoughFlavorsForHalfHalf ? "hover:border-primary/40 active:scale-[0.98] group" : "opacity-60 cursor-not-allowed"
             )}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1836,12 +1841,15 @@ function PublicMenuContent() {
                   🍕 Pizza meio a meio
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Até {halfHalfCategorySetting?.max_flavors ?? 2} sabores • {
-                    halfHalfCategorySetting?.half_half_pricing_rule === 'highest'
-                      ? 'cobra o sabor mais caro'
-                      : halfHalfCategorySetting?.half_half_pricing_rule === 'average'
-                        ? 'cobra a média dos sabores'
-                        : 'cobra proporcional (metade de cada)'
+                  {!hasEnoughFlavorsForHalfHalf
+                    ? 'Precisa ter pelo menos 2 sabores disponíveis'
+                    : <>Até {halfHalfCategorySetting?.max_flavors ?? 2} sabores • {
+                        halfHalfCategorySetting?.half_half_pricing_rule === 'highest'
+                          ? 'cobra o sabor mais caro'
+                          : halfHalfCategorySetting?.half_half_pricing_rule === 'average'
+                            ? 'cobra a média dos sabores'
+                            : 'cobra proporcional (metade de cada)'
+                      }</>
                   }
                 </p>
               </div>
