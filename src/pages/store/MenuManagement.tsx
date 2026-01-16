@@ -55,6 +55,7 @@ import { ProductFormSheet } from '@/components/menu/ProductFormSheet';
 import { CategoryPeriodLinker } from '@/components/menu/CategoryPeriodLinker';
 import { BulkImportModal } from '@/components/menu/BulkImportModal';
 import { MenuPreviewModal } from '@/components/menu/MenuPreviewModal';
+import { PizzaManagementPanel } from '@/components/menu/PizzaManagementPanel';
 
 import { useFormDraft, isDraftMeaningful } from '@/hooks/useFormDraft';
 import { cn } from '@/lib/utils';
@@ -158,6 +159,7 @@ export default function MenuManagement() {
   const [acaiCategoryBasePrices, setAcaiCategoryBasePrices] = useState<Record<string, number>>({});
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [acaiEditorSheet, setAcaiEditorSheet] = useState<{ open: boolean; categoryId: string; categoryName: string }>({ open: false, categoryId: '', categoryName: '' });
+  const [pizzaEditorSheet, setPizzaEditorSheet] = useState<{ open: boolean }>({ open: false });
   const [showDayPeriodsEditor, setShowDayPeriodsEditor] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [menuPreviewOpen, setMenuPreviewOpen] = useState(false);
@@ -1121,6 +1123,17 @@ export default function MenuManagement() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              {pizzaCategoryIds.includes(category.id) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => setPizzaEditorSheet({ open: true })}
+                                >
+                                  <Settings2 className="h-4 w-4" />
+                                  Configurar Pizza
+                                </Button>
+                              )}
                               {acaiCategoryIds.includes(category.id) && (
                                 <Button
                                   variant="outline"
@@ -1602,6 +1615,15 @@ export default function MenuManagement() {
           open={acaiEditorSheet.open}
           onClose={() => setAcaiEditorSheet({ open: false, categoryId: '', categoryName: '' })}
         />
+
+        {/* Pizza Management Panel */}
+        {companyId && (
+          <PizzaManagementPanel
+            open={pizzaEditorSheet.open}
+            onClose={() => setPizzaEditorSheet({ open: false })}
+            companyId={companyId}
+          />
+        )}
 
 
         {/* Bulk Import Modal */}
