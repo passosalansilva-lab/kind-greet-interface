@@ -132,7 +132,12 @@ export function ProductPizzaSettings({
         id: o.id, name: o.name, price_modifier: o.price_modifier, sort_order: o.sort_order, group_id: o.group_id
       })));
       
-      // Load settings
+      // Load settings - PRIORITY: Use values from product_option_groups (source of truth), then fallback to pizza_product_settings
+      const doughMaxSel = doughG?.max_selections ?? 1;
+      const doughReq = doughG?.is_required ?? true;
+      const crustMaxSel = crustG?.max_selections ?? 1;
+      const crustReq = crustG?.is_required ?? false;
+      
       if (settingsRes.data) {
         const d = settingsRes.data as any;
         setSettings({
@@ -141,17 +146,18 @@ export function ProductPizzaSettings({
           max_flavors: d.max_flavors ?? 2,
           half_half_pricing_rule: d.half_half_pricing_rule ?? 'average',
           half_half_discount_percentage: d.half_half_discount_percentage ?? 0,
-          dough_max_selections: d.dough_max_selections ?? 1,
-          dough_is_required: d.dough_is_required ?? true,
-          crust_max_selections: d.crust_max_selections ?? 1,
-          crust_is_required: d.crust_is_required ?? false,
+          // Use group values as source of truth for selection settings
+          dough_max_selections: doughMaxSel,
+          dough_is_required: doughReq,
+          crust_max_selections: crustMaxSel,
+          crust_is_required: crustReq,
         });
       } else {
         setSettings({
           product_id: productId, allow_half_half: true, max_flavors: 2,
           half_half_pricing_rule: 'average', half_half_discount_percentage: 0,
-          dough_max_selections: 1, dough_is_required: true,
-          crust_max_selections: 1, crust_is_required: false,
+          dough_max_selections: doughMaxSel, dough_is_required: doughReq,
+          crust_max_selections: crustMaxSel, crust_is_required: crustReq,
         });
       }
     } catch (error: any) {
