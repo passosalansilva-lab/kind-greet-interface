@@ -15,6 +15,7 @@ import {
   ToggleRight,
   Pencil,
   BarChart3,
+  Layers,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityLog } from '@/hooks/useActivityLog';
@@ -84,6 +86,7 @@ export default function PromotionsManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
+  const [applyTo, setApplyTo] = useState<'product' | 'category'>('product');
 
   const {
     register,
@@ -164,6 +167,7 @@ export default function PromotionsManagement() {
   const openCreateDialog = () => {
     setEditingPromotion(null);
     setImageUrl(null);
+    setApplyTo('product'); // Default to product
     reset({
       name: '',
       description: '',
@@ -179,6 +183,13 @@ export default function PromotionsManagement() {
   const openEditDialog = (promotion: Promotion) => {
     setEditingPromotion(promotion);
     setImageUrl(promotion.image_url);
+    
+    // Determine applyTo based on existing data
+    if (promotion.category_id) {
+      setApplyTo('category');
+    } else {
+      setApplyTo('product');
+    }
     
     // Format datetime for input
     let expiresAt = '';
@@ -620,38 +631,79 @@ export default function PromotionsManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Apply To Selection */}
+              <div className="space-y-3">
+                <Label>Aplicar promoção em</Label>
+                <RadioGroup
+                  value={applyTo}
+                  onValueChange={(value) => {
+                    setApplyTo(value as 'product' | 'category');
+                    // Clear the other field when switching
+                    if (value === 'product') {
+                      setValue('category_id', '');
+                    } else {
+                      setValue('product_id', '');
+                    }
+                  }}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="product" id="apply-product" />
+                    <Label htmlFor="apply-product" className="cursor-pointer flex items-center gap-1.5">
+                      <Package className="h-4 w-4" />
+                      Produto específico
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="category" id="apply-category" />
+                    <Label htmlFor="apply-category" className="cursor-pointer flex items-center gap-1.5">
+                      <Layers className="h-4 w-4" />
+                      Categoria
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Conditional Fields based on applyTo */}
+              {applyTo === 'product' ? (
                 <div className="space-y-2">
-                  <Label htmlFor="product_id">Produto (opcional)</Label>
+                  <Label htmlFor="product_id">Selecione o Produto</Label>
                   <select
                     id="product_id"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     {...register('product_id')}
                   >
-                    <option value="">Todos os produtos</option>
+                    <option value="">Selecione um produto...</option>
                     {products.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground">
+                    A promoção será aplicada apenas a este produto
+                  </p>
                 </div>
+              ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="category_id">Categoria (opcional)</Label>
+                  <Label htmlFor="category_id">Selecione a Categoria</Label>
                   <select
                     id="category_id"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     {...register('category_id')}
                   >
-                    <option value="">Todas as categorias</option>
+                    <option value="">Selecione uma categoria...</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground">
+                    A promoção será aplicada a todos os produtos desta categoria
+                  </p>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="expires_at">Data de Expiração (opcional)</Label>
