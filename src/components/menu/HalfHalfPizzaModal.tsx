@@ -98,6 +98,24 @@ export function HalfHalfPizzaModal({
   const [selectedSize, setSelectedSize] = useState<PizzaSize | null>(null);
   const [loadingSizes, setLoadingSizes] = useState(true);
 
+  // Map: productId -> (normalizedSizeName -> price)
+  const [sizePriceByProduct, setSizePriceByProduct] = useState<Record<string, Record<string, number>>>({});
+
+  const normalizeSizeKey = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+  const getFlavorPriceForSelectedSize = (product: Product): number => {
+    if (!selectedSize) return Number(product.price);
+    const key = normalizeSizeKey(selectedSize.name);
+    const price = sizePriceByProduct[product.id]?.[key];
+    if (typeof price === 'number' && price > 0) return price;
+    return Number(product.price);
+  };
+
   // Load pizza sizes when modal opens
   useEffect(() => {
     if (open && pizzaProducts.length > 0) {
@@ -124,16 +142,98 @@ export function HalfHalfPizzaModal({
   const loadPizzaSizes = async () => {
     try {
       setLoadingSizes(true);
-      
-      // Get category from first pizza product
+
+      // 1) Prioridade: tamanhos por PRODUTO (product_option_groups "Tamanho")
+      // Isso garante que o meio-a-meio respeite o preço do tamanho para cada sabor
+      const sizeGroupResults = await Promise.all(
+        pizzaProducts.map((p) =>
+          supabase
+            .from("product_option_groups")
+            .select(`
+              id,
+              name,
+              product_options (
+                id,
+                name,
+                price_modifier,
+                is_available,
+                sort_order
+              )
+            `)
+            .eq("product_id", p.id)
+            .ilike("name", "%tamanho%")
+            .maybeSingle(),
+        ),
+      );
+
+      const perProductSizeMap: Record<string, Record<string, number>> = {};
+      const allSizeKeys = new Set<string>();
+
+      sizeGroupResults.forEach((res: any, idx) => {
+        const productId = pizzaProducts[idx].id;
+        const group = res?.data;
+        const options = (group?.product_options || []) as any[];
+
+        const map: Record<string, number> = {};
+        for (const opt of options) {
+          if (!opt?.is_available) continue;
+          const key = normalizeSizeKey(opt.name);
+          const price = Number(opt.price_modifier ?? 0);
+          if (!key) continue;
+          // Para pizza, price_modifier é o preço final do tamanho
+          if (price > 0) {
+            map[key] = price;
+            allSizeKeys.add(key);
+          }
+        }
+
+        if (Object.keys(map).length > 0) {
+          perProductSizeMap[productId] = map;
+        }
+      });
+
+      if (Object.keys(perProductSizeMap).length > 0 && allSizeKeys.size > 0) {
+        // Montar lista de tamanhos a partir do conjunto de nomes
+        const sizesList: PizzaSize[] = Array.from(allSizeKeys)
+          .map((key) => {
+            // nome "bonito" = pegar do primeiro produto que tiver
+            const displayName =
+              pizzaProducts
+                .map((p) => p.name) &&
+              key;
+
+            const prices = pizzaProducts
+              .map((p) => perProductSizeMap[p.id]?.[key])
+              .filter((v): v is number => typeof v === 'number' && v > 0);
+
+            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+
+            return {
+              id: key, // id lógico por nome normalizado
+              name: key
+                .split(' ')
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' '),
+              base_price: minPrice,
+              max_flavors: maxFlavors,
+              slices: estimateSlices(key),
+            };
+          })
+          .sort((a, b) => a.base_price - b.base_price);
+
+        setSizePriceByProduct(perProductSizeMap);
+        setPizzaSizes(sizesList);
+        setSelectedSize(sizesList[0] || null);
+        return;
+      }
+
+      // 2) Fallback: tamanhos por CATEGORIA (pizza_category_sizes)
       const categoryId = pizzaProducts[0]?.category_id;
       if (!categoryId) {
-        setLoadingSizes(false);
         setStep("flavors");
         return;
       }
 
-      // Primeiro, tentar buscar tamanhos de pizza_category_sizes
       const { data: categorySizes, error: catError } = await supabase
         .from("pizza_category_sizes")
         .select("id, name, base_price, max_flavors, slices")
@@ -141,55 +241,13 @@ export function HalfHalfPizzaModal({
         .order("sort_order");
 
       if (!catError && categorySizes && categorySizes.length > 0) {
+        setSizePriceByProduct({});
         setPizzaSizes(categorySizes);
         setSelectedSize(categorySizes[0]);
-        setLoadingSizes(false);
         return;
       }
 
-      // Se não existir em pizza_category_sizes, buscar de product_option_groups
-      // Pegar tamanhos do primeiro produto de pizza
-      const productId = pizzaProducts[0]?.id;
-      if (productId) {
-        const { data: optionGroups, error: optError } = await supabase
-          .from("product_option_groups")
-          .select(`
-            id,
-            name,
-            product_options (
-              id,
-              name,
-              price_modifier,
-              is_available,
-              sort_order
-            )
-          `)
-          .eq("product_id", productId)
-          .ilike("name", "%tamanho%")
-          .single();
-
-        if (!optError && optionGroups && optionGroups.product_options) {
-          const sizesFromOptions = (optionGroups.product_options as any[])
-            .filter((opt: any) => opt.is_available)
-            .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
-            .map((opt: any) => ({
-              id: opt.id,
-              name: opt.name,
-              base_price: Number(opt.price_modifier) || 0,
-              max_flavors: 2, // default
-              slices: estimateSlices(opt.name), // estimar fatias pelo nome
-            }));
-
-          if (sizesFromOptions.length > 0) {
-            setPizzaSizes(sizesFromOptions);
-            setSelectedSize(sizesFromOptions[0]);
-            setLoadingSizes(false);
-            return;
-          }
-        }
-      }
-
-      // Nenhum tamanho encontrado, pular para sabores
+      // Nenhum tamanho encontrado
       setStep("flavors");
     } catch (error) {
       console.error("Error loading pizza sizes:", error);
@@ -510,36 +568,27 @@ export function HalfHalfPizzaModal({
   const calculatePrice = () => {
     // Calculate base price based on pricing rule
     let basePrice = 0;
-    
+
     if (selectedFlavors.length > 0) {
-      const prices = selectedFlavors.map(f => f.price);
-      
+      // Regra do meio a meio por TAMANHO: usa o preço do tamanho selecionado para cada sabor
+      const prices = selectedFlavors.map((f) => getFlavorPriceForSelectedSize(f));
+
       switch (pricingRule) {
         case 'highest':
-          // Use the highest price among selected flavors
           basePrice = Math.max(...prices);
           break;
         case 'sum':
-          // Sum proportionally (divide by number of flavors)
           basePrice = prices.reduce((sum, p) => sum + p, 0) / selectedFlavors.length;
           break;
         case 'average':
         default:
-          // Average of all selected flavors
           basePrice = prices.reduce((sum, p) => sum + p, 0) / selectedFlavors.length;
           break;
       }
     }
 
-    // Add size price modifier if selected
-    if (selectedSize) {
-      // Size price is the base, flavor prices are modifiers on top
-      // For half-half, we use size as base and add flavor difference
-      const avgFlavorPrice = selectedFlavors.length > 0 
-        ? selectedFlavors.reduce((sum, f) => sum + f.price, 0) / selectedFlavors.length 
-        : 0;
-      
-      // If size has a base price, use it; otherwise use flavor-based calculation
+    // Fallback antigo: se não temos mapa de preços por tamanho, usar base_price do tamanho (categoria)
+    if (selectedSize && Object.keys(sizePriceByProduct).length === 0) {
       if (selectedSize.base_price > 0) {
         basePrice = selectedSize.base_price;
       }
@@ -740,7 +789,7 @@ export function HalfHalfPizzaModal({
 
                       <h3 className="font-semibold text-sm mb-0.5">{product.name}</h3>
                       <p className="text-xs font-semibold text-primary mb-0.5">
-                        R$ {Number(product.price).toFixed(2)}
+                        R$ {getFlavorPriceForSelectedSize(product).toFixed(2)}
                       </p>
                       {product.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2">
