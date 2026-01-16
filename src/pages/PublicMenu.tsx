@@ -1043,11 +1043,12 @@ function PublicMenuContent() {
           const sizesForCategory = (data || []).filter((row: any) => row.category_id === catId);
           if (!sizesForCategory.length) return;
 
-          const grande = sizesForCategory.find((s: any) =>
-            String(s.name || '').toLowerCase().includes('grande')
+          // Sort by base_price descending to get the highest price
+          const sorted = [...sizesForCategory].sort(
+            (a: any, b: any) => Number(b.base_price || 0) - Number(a.base_price || 0)
           );
-          const chosen = grande || sizesForCategory[0];
-          const basePrice = Number(chosen.base_price || 0);
+          const highest = sorted[0];
+          const basePrice = Number(highest.base_price || 0);
           if (basePrice > 0) {
             map[catId] = basePrice;
           }
