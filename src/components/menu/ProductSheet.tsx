@@ -66,6 +66,8 @@ interface ProductSheetProps {
   open: boolean;
   onClose: () => void;
   primaryColor?: string | null;
+  /** ID da promoção aplicada, se o produto foi clicado de uma promoção */
+  promotionId?: string;
 }
 
 // Helper function to convert hex to HSL
@@ -234,7 +236,7 @@ function OptionCard({
   );
 }
 
-export function ProductSheet({ product, open, onClose, primaryColor }: ProductSheetProps) {
+export function ProductSheet({ product, open, onClose, primaryColor, promotionId }: ProductSheetProps) {
   const { addItem } = useCart();
   const acaiCache = useAcaiOptionsCache();
   const [quantity, setQuantity] = useState(1);
@@ -882,6 +884,7 @@ export function ProductSheet({ product, open, onClose, primaryColor }: ProductSh
       notes: finalNotes || undefined,
       imageUrl: product.image_url || undefined,
       requiresPreparation: product.requires_preparation !== false,
+      promotionId,
     });
     handleClose();
   };

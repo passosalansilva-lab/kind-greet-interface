@@ -201,6 +201,7 @@ function PublicMenuContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedPromotionId, setSelectedPromotionId] = useState<string | undefined>(undefined);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState(false);
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
@@ -892,13 +893,14 @@ function PublicMenuContent() {
   };
 
   // Clique no card do produto
-  const handleProductClick = (product: Product) => {
+  const handleProductClick = (product: Product, promotionId?: string) => {
     // Se for combo, abrir ComboModal
     if (comboProductIds.has(product.id)) {
       setSelectedCombo(product);
       return;
     }
     setSelectedProduct(product);
+    setSelectedPromotionId(promotionId);
   };
 
   const handleToggleFavoriteClick = (productId: string, e: React.MouseEvent) => {
@@ -2050,8 +2052,12 @@ function PublicMenuContent() {
       <ProductSheet
         product={selectedProduct}
         open={!!selectedProduct}
-        onClose={() => setSelectedProduct(null)}
+        onClose={() => {
+          setSelectedProduct(null);
+          setSelectedPromotionId(undefined);
+        }}
         primaryColor={company.primary_color}
+        promotionId={selectedPromotionId}
       />
 
       {/* Cart Drawer */}

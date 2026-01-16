@@ -33,7 +33,7 @@ interface PromotionalProductsSectionProps {
   promotions: Promotion[];
   products: Product[];
   companyId?: string;
-  onProductClick: (product: Product) => void;
+  onProductClick: (product: Product, promotionId?: string) => void;
 }
 
 export function PromotionalProductsSection({ 
@@ -130,7 +130,7 @@ export function PromotionalProductsSection({
                 if (promotion && companyId) {
                   trackClick(promotion.id, companyId);
                 }
-                onProductClick(product);
+                onProductClick(product, promotion?.id);
               }}
               className="relative group text-left rounded-2xl bg-card border border-border/60 overflow-hidden shadow-sm hover:shadow-lg hover:border-primary/30 transition-all active:scale-[0.98]"
             >

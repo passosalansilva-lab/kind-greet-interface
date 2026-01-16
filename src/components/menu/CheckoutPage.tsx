@@ -45,6 +45,7 @@ import { ReferralShareCard } from './ReferralShareCard';
 import { LotteryTicketsCard } from './LotteryTicketsCard';
 import { useAuth } from '@/hooks/useAuth';
 import { GroupedOptionsDisplay } from '@/components/ui/grouped-options-display';
+import { trackCartConversions } from '@/hooks/usePromotionTracking';
 
 interface ViaCepResponse {
   cep: string;
@@ -1525,6 +1526,9 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
       
       setOrderComplete(true);
       clearCart();
+      
+      // Track promotion conversions
+      trackCartConversions(items, companyId, newOrderId);
 
       toast({
         title: 'Pedido realizado!',
@@ -1764,6 +1768,9 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setOrderComplete(true);
           clearCart();
           
+          // Track promotion conversions
+          trackCartConversions(items, companyId, newOrderId);
+          
           // Update localStorage with the correct customer ID
           if (paymentCustomerId) {
             updateStoredCustomerId(paymentCustomerId);
@@ -1800,6 +1807,9 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setTicketsEarnedInOrder(ticketsEarned);
           setOrderComplete(true);
           clearCart();
+          
+          // Track promotion conversions
+          trackCartConversions(items, companyId, newOrderId);
           
           // Update localStorage with the correct customer ID
           if (paymentCustomerId) {
@@ -1856,6 +1866,9 @@ export function CheckoutPage({ companyId, companyName, companySlug, companyPhone
           setTicketsEarnedInOrder(ticketsEarned);
           setOrderComplete(true);
           clearCart();
+          
+          // Track promotion conversions
+          trackCartConversions(items, companyId, newOrderId);
           
           // Update localStorage with the correct customer ID
           if (paymentCustomerId) {

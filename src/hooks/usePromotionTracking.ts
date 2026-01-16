@@ -107,3 +107,54 @@ export function useTrackPromotionViews(
     });
   }, [promotions, companyId, enabled, trackView]);
 }
+
+/**
+ * Helper to track conversions for all promotions applied to cart items.
+ * Call this when an order is successfully completed/paid.
+ */
+export async function trackCartConversions(
+  items: Array<{ promotionId?: string; price: number; quantity: number; options: { priceModifier: number }[] }>,
+  companyId: string,
+  orderId: string
+) {
+  const sessionId = sessionStorage.getItem('promotion_session_id') || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Group items by promotionId and calculate revenue per promotion
+  const promotionRevenue = new Map<string, number>();
+  
+  items.forEach((item) => {
+    if (item.promotionId) {
+      const itemTotal = (item.price + item.options.reduce((s, o) => s + o.priceModifier, 0)) * item.quantity;
+      const current = promotionRevenue.get(item.promotionId) || 0;
+      promotionRevenue.set(item.promotionId, current + itemTotal);
+    }
+  });
+
+  // Track conversion for each promotion
+  const promises = Array.from(promotionRevenue.entries()).map(async ([promotionId, revenue]) => {
+    try {
+      console.log(`[PromotionTracking] Tracking conversion for promotion ${promotionId}, order ${orderId}, revenue ${revenue}`);
+      
+      const { data, error } = await (await import('@/integrations/supabase/client')).supabase.functions.invoke('track-promotion-event', {
+        body: {
+          promotion_id: promotionId,
+          company_id: companyId,
+          event_type: 'conversion',
+          order_id: orderId,
+          revenue: revenue,
+          session_id: sessionId,
+        },
+      });
+
+      if (error) {
+        console.error('[PromotionTracking] Error tracking conversion:', error);
+      } else {
+        console.log('[PromotionTracking] Conversion tracked successfully:', data);
+      }
+    } catch (err) {
+      console.error('[PromotionTracking] Failed to track conversion:', err);
+    }
+  });
+
+  await Promise.all(promises);
+}

@@ -64,6 +64,8 @@ interface ProductModalProps {
   product: Product | null;
   open: boolean;
   onClose: () => void;
+  /** ID da promoção aplicada, se o produto foi clicado de uma promoção */
+  promotionId?: string;
 }
 
 interface SelectedOption {
@@ -198,7 +200,7 @@ function OptionCard({
   );
 }
 
-export function ProductModal({ product, open, onClose }: ProductModalProps) {
+export function ProductModal({ product, open, onClose, promotionId }: ProductModalProps) {
   const { addItem } = useCart();
   const acaiCache = useAcaiOptionsCache();
   const [quantity, setQuantity] = useState(1);
@@ -860,6 +862,7 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
       notes: finalNotes || undefined,
       imageUrl: product.image_url || undefined,
       requiresPreparation: product.requires_preparation !== false,
+      promotionId,
     });
     handleClose();
   };

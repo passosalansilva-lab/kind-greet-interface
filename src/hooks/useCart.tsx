@@ -10,6 +10,8 @@ export interface CartItem {
   notes?: string;
   imageUrl?: string;
   requiresPreparation?: boolean;
+  /** ID da promoção aplicada ao item, se houver */
+  promotionId?: string;
 }
 
 interface CartContextType {
