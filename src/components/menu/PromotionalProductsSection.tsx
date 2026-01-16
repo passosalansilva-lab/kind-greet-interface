@@ -15,6 +15,9 @@ interface Promotion {
   image_url: string | null;
   is_active: boolean;
   expires_at: string | null;
+  apply_to_all_sizes?: boolean | null;
+  /** IDs dos tamanhos (product_options) selecionados para a promoção */
+  selected_size_ids?: string[];
 }
 
 interface Product {
@@ -199,7 +202,7 @@ export function PromotionalProductsSection({
 export function getProductPromotionDiscount(
   product: { id: string; category_id: string | null; price: number; promotional_price?: number | null },
   promotions: Promotion[]
-): { hasDiscount: boolean; discountText: string | null; discountedPrice: number } {
+): { hasDiscount: boolean; discountText: string | null; discountedPrice: number; promotion?: Promotion } {
   // Check promotional_price first
   if (product.promotional_price && Number(product.promotional_price) > 0 && Number(product.promotional_price) < Number(product.price)) {
     const discount = Math.round((1 - Number(product.promotional_price) / Number(product.price)) * 100);
@@ -227,7 +230,8 @@ export function getProductPromotionDiscount(
     return {
       hasDiscount: true,
       discountText: `${activePromotion.discount_value}%`,
-      discountedPrice
+      discountedPrice,
+      promotion: activePromotion
     };
   }
 
@@ -235,6 +239,55 @@ export function getProductPromotionDiscount(
   return {
     hasDiscount: true,
     discountText: `R$ ${activePromotion.discount_value.toFixed(0)}`,
-    discountedPrice
+    discountedPrice,
+    promotion: activePromotion
   };
+}
+
+/**
+ * Check if a specific size (product_option) is eligible for the promotion discount.
+ * Returns true if:
+ * - The promotion applies to all sizes (apply_to_all_sizes is true or null)
+ * - OR the size is in the selected_size_ids array
+ */
+export function isSizeInPromotion(
+  sizeOptionId: string,
+  promotion: Promotion | undefined
+): boolean {
+  if (!promotion) return false;
+  
+  // If apply_to_all_sizes is true or not set, all sizes are in promotion
+  if (promotion.apply_to_all_sizes !== false) {
+    return true;
+  }
+  
+  // Otherwise, check if this size is in the selected sizes
+  if (!promotion.selected_size_ids || promotion.selected_size_ids.length === 0) {
+    // No sizes selected but apply_to_all_sizes is false - no discount applies
+    return false;
+  }
+  
+  return promotion.selected_size_ids.includes(sizeOptionId);
+}
+
+/**
+ * Calculate discounted price for a specific size based on promotion rules.
+ */
+export function calculateSizeDiscountedPrice(
+  sizePrice: number,
+  promotion: Promotion | undefined,
+  sizeOptionId?: string
+): number {
+  if (!promotion) return sizePrice;
+  
+  // Check if this size is eligible for the discount
+  if (sizeOptionId && !isSizeInPromotion(sizeOptionId, promotion)) {
+    return sizePrice;
+  }
+  
+  if (promotion.discount_type === 'percentage') {
+    return sizePrice * (1 - promotion.discount_value / 100);
+  }
+  
+  return Math.max(0, sizePrice - promotion.discount_value);
 }
