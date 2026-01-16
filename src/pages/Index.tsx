@@ -667,7 +667,10 @@ export default function Index() {
               Apps web modernos
             </h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-              Seus clientes e entregadores terão a melhor experiência
+              Seus clientes e entregadores terão a melhor experiência, na web ou no desktop
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Também disponível como aplicativo para Windows após criar sua conta
             </p>
           </motion.div>
           

@@ -27,6 +27,8 @@ import {
   Medal,
   Crown,
   Flame,
+  Monitor,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -390,6 +392,31 @@ export default function Dashboard() {
           />
         )}
 
+        {/* Desktop App Download Card */}
+        {companyId && companyStatus === 'approved' && (
+          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+            <CardContent className="py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Monitor className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">Aplicativo para Desktop</p>
+                  <p className="text-sm text-muted-foreground">
+                    Baixe o Cardápio On para Windows e tenha acesso rápido ao sistema
+                  </p>
+                </div>
+              </div>
+              <Button 
+                className="gradient-primary gap-2"
+                onClick={() => window.open('https://uyaymtikndembadyljib.supabase.co/storage/v1/object/public/downloads/CardapioOn-Setup.exe', '_blank')}
+              >
+                <Download className="h-4 w-4" />
+                Baixar para Windows
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
