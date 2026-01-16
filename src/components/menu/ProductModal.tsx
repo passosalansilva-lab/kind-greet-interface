@@ -345,23 +345,21 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
       const isAcaiCategory = !!acaiCategoryData;
       const isPizzaCategory = !!pizzaCategoryData;
       const hasAcaiSizes = isAcaiCategory && acaiSizesData && Array.isArray(acaiSizesData) && acaiSizesData.length > 0;
-      const hasCategorySizes = isPizzaCategory && sizesData && Array.isArray(sizesData) && sizesData.length > 0;
-      
+
       // Pizza settings: product settings take priority over category settings
       const productSettings = pizzaProductSettingsData || {};
       const categorySettings = pizzaCategorySettingsData || {};
-      
+
       // Use product settings if available, otherwise fall back to category settings
       const doughMaxSelections = productSettings.dough_max_selections ?? categorySettings.dough_max_selections ?? 1;
       const doughIsRequired = productSettings.dough_is_required ?? categorySettings.dough_is_required ?? true;
       const crustMaxSelections = productSettings.crust_max_selections ?? categorySettings.crust_max_selections ?? 1;
       const crustIsRequired = productSettings.crust_is_required ?? categorySettings.crust_is_required ?? false;
 
-      // Check for product-specific sizes/doughs/crusts from product_options
+      // Product-specific pizza groups (Tamanho/Massa/Borda) are stored as product_option_groups + product_options
       const allProductGroups = groupsData || [];
       const allProductOptions = optionsData || [];
-      
-      // Find product-specific pizza groups
+
       const productSizeGroup = allProductGroups.find((g: any) => {
         const name = (g.name || '').toLowerCase().trim();
         return name === 'tamanho' || name === 'tamanhos' || name.includes('tamanho');
@@ -374,25 +372,23 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
         const name = (g.name || '').toLowerCase().trim();
         return name.includes('borda') || name === 'bordas';
       });
-      
-      const productSizeOptions = productSizeGroup 
+
+      const productSizeOptions = productSizeGroup
         ? allProductOptions.filter((o: any) => o.group_id === productSizeGroup.id)
         : [];
-      const productDoughOptions = productDoughGroup 
+      const productDoughOptions = productDoughGroup
         ? allProductOptions.filter((o: any) => o.group_id === productDoughGroup.id)
         : [];
-      const productCrustOptions = productCrustGroup 
+      const productCrustOptions = productCrustGroup
         ? allProductOptions.filter((o: any) => o.group_id === productCrustGroup.id)
         : [];
-      
-      // Use product sizes if available, otherwise use category sizes
-      const hasProductSizes = isPizzaCategory && productSizeOptions.length > 0;
-      const hasPizzaSizes = hasCategorySizes || hasProductSizes;
 
-      // Filter out groups that are managed by pizza configuration system
-      // These will be added back with proper settings
+      // IMPORTANT: Pizza is configured per product. Do not show category-level sizes/dough/crust in the customer modal.
+      const hasProductSizes = isPizzaCategory && productSizeOptions.length > 0;
+
+      // Filter out the product-level pizza system groups from the generic add-ons list.
       const pizzaSystemGroupIds = [productSizeGroup?.id, productDoughGroup?.id, productCrustGroup?.id].filter(Boolean);
-      const filteredGroupsData = isPizzaCategory 
+      const filteredGroupsData = isPizzaCategory
         ? (groupsData || []).filter((group: any) => !pizzaSystemGroupIds.includes(group.id))
         : (groupsData || []);
 
@@ -424,9 +420,7 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
 
       const maxUserSortOrder = groups.reduce((max, g) => Math.max(max, g.sort_order ?? 0), 0);
 
-      if (hasPizzaSizes) {
-        // Prefer product-specific sizes over category sizes
-        const sizesToUse = hasProductSizes ? productSizeOptions : (sizesData as any[]);
+      if (hasProductSizes) {
         const sizeGroup: OptionGroup = {
           id: 'pizza-size',
           name: 'Tamanho',
@@ -438,13 +432,11 @@ export function ProductModal({ product, open, onClose }: ProductModalProps) {
           sort_order: -2,
           free_quantity_limit: 0,
           extra_unit_price: 0,
-          options: sizesToUse.map((size: any) => ({
+          options: productSizeOptions.map((size: any) => ({
             id: size.id,
             name: size.name,
-            description: hasProductSizes 
-              ? null 
-              : (size.slices ? `${size.slices} pedaços` : (size.max_flavors ? `Até ${size.max_flavors} sabores` : null)),
-            price_modifier: Number(hasProductSizes ? (size.price_modifier ?? 0) : (size.base_price ?? 0)),
+            description: null,
+            price_modifier: Number(size.price_modifier ?? 0),
             is_required: true,
             is_available: true,
             sort_order: size.sort_order ?? 0,

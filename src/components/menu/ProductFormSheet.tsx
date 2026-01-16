@@ -660,15 +660,33 @@ export function ProductFormSheet({
       if (groupsRes.error) throw groupsRes.error;
       if (optionsRes.error) throw optionsRes.error;
 
-      const groupsData: OptionGroup[] = (groupsRes.data || []).map((g: any) => ({
+      const rawGroups: OptionGroup[] = (groupsRes.data || []).map((g: any) => ({
         ...g,
         free_quantity_limit: g.free_quantity_limit ?? 0,
         extra_unit_price: g.extra_unit_price ?? 0,
         options: (optionsRes.data || []).filter((o: any) => o.group_id === g.id),
       }));
 
+      // IMPORTANT: Pizza configuration groups (Tamanho/Massa/Borda) are managed in Step 2 (ProductPizzaSettings)
+      // They must NOT appear inside "Adicionais" (extras) editor.
+      const groupsData = isPizzaCategory
+        ? rawGroups.filter((g: any) => {
+            const name = (g.name || '').toLowerCase().trim();
+            return !(
+              name === 'tamanho' ||
+              name === 'tamanhos' ||
+              name.includes('tamanho') ||
+              name.includes('massa') ||
+              name === 'massas' ||
+              name === 'tipo de massa' ||
+              name.includes('borda') ||
+              name === 'bordas'
+            );
+          })
+        : rawGroups;
+
       setGroups(groupsData);
-      
+
       // Expand first group by default
       if (groupsData.length > 0) {
         setExpandedGroups(new Set([groupsData[0].id]));
