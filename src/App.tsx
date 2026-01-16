@@ -29,6 +29,7 @@ import DevDocs from "./pages/admin/DevDocs";
 import ReleaseNotes from "./pages/admin/ReleaseNotes";
 import EmailTemplates from "./pages/admin/EmailTemplates";
 import RefundRequests from "./pages/admin/RefundRequests";
+import AiApiLogs from "./pages/admin/AiApiLogs";
 import NfeManagement from "./pages/store/NfeManagement";
 import NfeSetup from "./pages/store/NfeSetup";
 import StoreSettings from "./pages/store/StoreSettings";
@@ -544,6 +545,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <EmailTemplates />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/admin/ai-logs"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <AiApiLogs />
                   </ProtectedRoute>
                 }
               />
