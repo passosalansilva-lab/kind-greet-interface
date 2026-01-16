@@ -352,6 +352,26 @@ const canSeeItem = (item: NavItem): boolean => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Electron Title Bar */}
+      {isElectronApp && (
+        <div 
+          className="fixed top-0 left-0 right-0 h-8 bg-sidebar/95 backdrop-blur-sm border-b border-sidebar-border z-[60] flex items-center justify-between px-3"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        >
+          <span className="text-[11px] text-sidebar-foreground/60 font-medium select-none">
+            Cardápio On Desktop
+          </span>
+          <button
+            onClick={handleSignOutClick}
+            className="p-1 rounded hover:bg-destructive/20 text-sidebar-foreground/50 hover:text-destructive transition-colors"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            title="Fechar aplicativo"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -360,7 +380,8 @@ const canSeeItem = (item: NavItem): boolean => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
+          "fixed left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
+          isElectronApp ? "top-8" : "top-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -536,9 +557,12 @@ const canSeeItem = (item: NavItem): boolean => {
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className={cn("lg:pl-64", isElectronApp && "pt-8")}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
+        <header className={cn(
+          "sticky z-30 flex h-16 items-center gap-4 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6",
+          isElectronApp ? "top-8" : "top-0"
+        )}>
           {/* Mobile menu */}
           <button
             onClick={() => setSidebarOpen(true)}
