@@ -129,33 +129,84 @@ export function HalfHalfPizzaModal({
       const categoryId = pizzaProducts[0]?.category_id;
       if (!categoryId) {
         setLoadingSizes(false);
-        // Skip size selection if no category
         setStep("flavors");
         return;
       }
 
-      const { data: sizes, error } = await supabase
+      // Primeiro, tentar buscar tamanhos de pizza_category_sizes
+      const { data: categorySizes, error: catError } = await supabase
         .from("pizza_category_sizes")
         .select("id, name, base_price, max_flavors, slices")
         .eq("category_id", categoryId)
         .order("sort_order");
 
-      if (error) throw error;
-
-      if (sizes && sizes.length > 0) {
-        setPizzaSizes(sizes);
-        // Auto-select first size
-        setSelectedSize(sizes[0]);
-      } else {
-        // No sizes configured, skip to flavors
-        setStep("flavors");
+      if (!catError && categorySizes && categorySizes.length > 0) {
+        setPizzaSizes(categorySizes);
+        setSelectedSize(categorySizes[0]);
+        setLoadingSizes(false);
+        return;
       }
+
+      // Se não existir em pizza_category_sizes, buscar de product_option_groups
+      // Pegar tamanhos do primeiro produto de pizza
+      const productId = pizzaProducts[0]?.id;
+      if (productId) {
+        const { data: optionGroups, error: optError } = await supabase
+          .from("product_option_groups")
+          .select(`
+            id,
+            name,
+            product_options (
+              id,
+              name,
+              price_modifier,
+              is_available,
+              sort_order
+            )
+          `)
+          .eq("product_id", productId)
+          .ilike("name", "%tamanho%")
+          .single();
+
+        if (!optError && optionGroups && optionGroups.product_options) {
+          const sizesFromOptions = (optionGroups.product_options as any[])
+            .filter((opt: any) => opt.is_available)
+            .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+            .map((opt: any) => ({
+              id: opt.id,
+              name: opt.name,
+              base_price: Number(opt.price_modifier) || 0,
+              max_flavors: 2, // default
+              slices: estimateSlices(opt.name), // estimar fatias pelo nome
+            }));
+
+          if (sizesFromOptions.length > 0) {
+            setPizzaSizes(sizesFromOptions);
+            setSelectedSize(sizesFromOptions[0]);
+            setLoadingSizes(false);
+            return;
+          }
+        }
+      }
+
+      // Nenhum tamanho encontrado, pular para sabores
+      setStep("flavors");
     } catch (error) {
       console.error("Error loading pizza sizes:", error);
       setStep("flavors");
     } finally {
       setLoadingSizes(false);
     }
+  };
+
+  // Função auxiliar para estimar fatias pelo nome do tamanho
+  const estimateSlices = (sizeName: string): number => {
+    const name = sizeName.toLowerCase();
+    if (name.includes("pequen") || name.includes("broto") || name.includes("individual")) return 4;
+    if (name.includes("médi") || name.includes("medi")) return 6;
+    if (name.includes("grand") || name.includes("famil")) return 8;
+    if (name.includes("giga") || name.includes("extra")) return 10;
+    return 8; // default
   };
 
   const loadOptions = async () => {
@@ -524,16 +575,17 @@ export function HalfHalfPizzaModal({
 
     // Montar descrição dos sabores
     const flavorsText = selectedFlavors.map((f) => f.name).join(" + ");
+    const sizeText = selectedSize ? ` - ${selectedSize.name}` : "";
 
     const halfHalfFlavorProductIds = selectedFlavors.map((f) => f.id);
 
     addItem({
       productId: selectedFlavors[0].id,
-      productName: `Pizza Meio a Meio (${selectedFlavors.length} sabores)` ,
+      productName: `Pizza Meio a Meio${sizeText}`,
       price: unitPrice,
       quantity: quantity,
       imageUrl: selectedFlavors[0].image_url || undefined,
-      notes: `Sabores: ${flavorsText}`,
+      notes: `Sabores: ${flavorsText}${selectedSize ? ` | ${selectedSize.slices} fatias` : ""}`,
       options: [
         {
           name: "Meio a meio",
@@ -541,6 +593,10 @@ export function HalfHalfPizzaModal({
           // Metadados para estoque: ids dos produtos de cada sabor
           halfHalfFlavorProductIds,
         } as any,
+        ...(selectedSize ? [{
+          name: `Tamanho: ${selectedSize.name}`,
+          priceModifier: 0,
+        }] : []),
         ...selectedFlavors.map((f, idx) => ({
           name: `Sabor ${idx + 1}: ${f.name}`,
           priceModifier: 0,
