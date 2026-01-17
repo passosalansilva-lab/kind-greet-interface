@@ -457,12 +457,10 @@ export function HalfHalfPizzaModal({
           : [];
 
       // Identificar grupos por tipo a partir dos grupos genéricos
-      const sizeGroupsFromNames = mergedGroups.filter((g) =>
-        normalize(g.name).includes("tamanho")
-      );
-
-      const sizeGroups =
-        sizeGroupsFromPizza.length > 0 ? sizeGroupsFromPizza : sizeGroupsFromNames;
+      // IMPORTANTE: No fluxo de meio a meio, o tamanho já foi selecionado no step "size"
+      // e o preço está em sizePriceByProduct. Não devemos exibir grupos de "tamanho"
+      // nas opções para evitar duplicação de preço.
+      const sizeGroups: OptionGroup[] = [];
 
       const doughGroupsFromNames = mergedGroups.filter((g) =>
         normalize(g.name).includes("massa") ||
@@ -520,32 +518,8 @@ export function HalfHalfPizzaModal({
         return true;
       });
 
+      // NOTA: sizeGroups está vazio pois o tamanho já foi selecionado no step "size"
       setSizeOptions(sizeGroups);
-
-      // Seleção automática do tamanho "Grande" (ou primeiro tamanho) como padrão
-      if (sizeGroups.length > 0) {
-        const sizeGroup = sizeGroups[0];
-        const grandeOption = sizeGroup.options.find((opt) =>
-          opt.name.toLowerCase().includes("grande"),
-        );
-        const defaultSize = grandeOption || sizeGroup.options[0];
-
-        if (defaultSize) {
-          setSelectedOptions((prev) => {
-            const filtered = prev.filter((opt) => opt.group_id !== sizeGroup.id);
-            return [
-              ...filtered,
-              {
-                group_id: sizeGroup.id,
-                group_name: sizeGroup.name,
-                option_id: defaultSize.id,
-                option_name: defaultSize.name,
-                price_modifier: defaultSize.price_modifier,
-              },
-            ];
-          });
-        }
-      }
 
       setDoughOptions(doughGroups);
       setCrustOptions(enableCrust ? crust : []);
