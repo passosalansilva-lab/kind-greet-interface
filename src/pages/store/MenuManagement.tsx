@@ -43,6 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useToast } from '@/hooks/use-toast';
@@ -1332,7 +1333,7 @@ export default function MenuManagement() {
             }
           }}
         >
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
                 {categoryDialog.category ? 'Editar categoria' : 'Nova categoria'}
@@ -1413,276 +1414,282 @@ export default function MenuManagement() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="categoryName">
-                  Nome da categoria *
-                </label>
-                <Input
-                  id="categoryName"
-                  value={categoryDialog.category?.name || ''}
-                  onChange={(e) =>
-                    setCategoryDialog((prev) => ({
-                      ...prev,
-                      category: {
-                        id: prev.category?.id || '',
-                        name: e.target.value,
-                        description: prev.category?.description || '',
-                        image_url: prev.category?.image_url || null,
-                        sort_order: prev.category?.sort_order || 0,
-                        is_active: prev.category?.is_active ?? true,
-                      },
-                    }))
-                  }
-                  placeholder="Ex: Pizzas, Bebidas, Sobremesas"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="categoryDescription">
-                  Descrição (opcional)
-                </label>
-                <Textarea
-                  id="categoryDescription"
-                  value={categoryDialog.category?.description || ''}
-                  onChange={(e) =>
-                    setCategoryDialog((prev) => ({
-                      ...prev,
-                      category: {
-                        id: prev.category?.id || '',
-                        name: prev.category?.name || '',
-                        description: e.target.value,
-                        image_url: prev.category?.image_url || null,
-                        sort_order: prev.category?.sort_order || 0,
-                        is_active: prev.category?.is_active ?? true,
-                      },
-                    }))
-                  }
-                  placeholder="Texto que aparece abaixo do nome da categoria"
-                />
-              </div>
-
-              {/* Pizza half & half settings */}
-              {categoryType === 'pizza' && (
-                <div className="space-y-4 pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Permitir meio a meio</p>
-                      <p className="text-xs text-muted-foreground">
-                        Clientes podem montar pizzas com sabores diferentes
-                      </p>
+              {categoryType === 'pizza' ? (
+                <Tabs defaultValue="basico" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="basico">Básico</TabsTrigger>
+                    <TabsTrigger value="meio-a-meio">Meio a Meio</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="basico" className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium" htmlFor="categoryName">
+                        Nome da categoria *
+                      </label>
+                      <Input
+                        id="categoryName"
+                        value={categoryDialog.category?.name || ''}
+                        onChange={(e) =>
+                          setCategoryDialog((prev) => ({
+                            ...prev,
+                            category: {
+                              id: prev.category?.id || '',
+                              name: e.target.value,
+                              description: prev.category?.description || '',
+                              image_url: prev.category?.image_url || null,
+                              sort_order: prev.category?.sort_order || 0,
+                              is_active: prev.category?.is_active ?? true,
+                            },
+                          }))
+                        }
+                        placeholder="Ex: Pizzas, Bebidas, Sobremesas"
+                      />
                     </div>
-                    <Switch
-                      checked={pizzaCategoryDialogSettings.allowHalfHalf}
-                      onCheckedChange={(checked) =>
-                        setPizzaCategoryDialogSettings((prev) => ({
-                          ...prev,
-                          allowHalfHalf: checked,
-                        }))
-                      }
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium" htmlFor="categoryDescription">
+                        Descrição (opcional)
+                      </label>
+                      <Textarea
+                        id="categoryDescription"
+                        value={categoryDialog.category?.description || ''}
+                        onChange={(e) =>
+                          setCategoryDialog((prev) => ({
+                            ...prev,
+                            category: {
+                              id: prev.category?.id || '',
+                              name: prev.category?.name || '',
+                              description: e.target.value,
+                              image_url: prev.category?.image_url || null,
+                              sort_order: prev.category?.sort_order || 0,
+                              is_active: prev.category?.is_active ?? true,
+                            },
+                          }))
+                        }
+                        placeholder="Texto que aparece abaixo do nome da categoria"
+                        rows={2}
+                      />
+                    </div>
+                  </TabsContent>
 
-                  {pizzaCategoryDialogSettings.allowHalfHalf && (
-                    <>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Regra de preço do meio a meio</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfPricingRule === 'average'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfPricingRule: 'average',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Soma os preços e divide pelo número de sabores. Ex: Pizza A (R$60) + Pizza B (R$40) = R$50
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Média</p>
-                            <p className="text-xs text-muted-foreground">dos sabores</p>
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfPricingRule === 'highest'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfPricingRule: 'highest',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Cobra o valor do sabor mais caro. Ex: Pizza A (R$60) + Pizza B (R$40) = R$60
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Maior</p>
-                            <p className="text-xs text-muted-foreground">sabor mais caro</p>
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfPricingRule === 'sum'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfPricingRule: 'sum',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Cobra metade de cada sabor. Ex: Pizza A (R$60 ÷ 2) + Pizza B (R$40 ÷ 2) = R$50
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Soma</p>
-                            <p className="text-xs text-muted-foreground">proporcional</p>
-                          </button>
-                        </div>
+                  <TabsContent value="meio-a-meio" className="space-y-4 mt-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="text-sm font-medium">Permitir meio a meio</p>
+                        <p className="text-xs text-muted-foreground">
+                          Clientes montam pizzas com sabores diferentes
+                        </p>
                       </div>
+                      <Switch
+                        checked={pizzaCategoryDialogSettings.allowHalfHalf}
+                        onCheckedChange={(checked) =>
+                          setPizzaCategoryDialogSettings((prev) => ({
+                            ...prev,
+                            allowHalfHalf: checked,
+                          }))
+                        }
+                      />
+                    </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Máximo de sabores</label>
-                        <div className="flex gap-2">
-                          {[2, 3, 4].map((num) => (
+                    {pizzaCategoryDialogSettings.allowHalfHalf && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Regra de preço</label>
+                          <div className="grid grid-cols-3 gap-1.5">
                             <button
-                              key={num}
                               type="button"
                               className={cn(
-                                "px-4 py-2 rounded-lg border-2 transition-all",
-                                pizzaCategoryDialogSettings.maxFlavors === num
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfPricingRule === 'average'
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/50"
                               )}
                               onClick={() =>
                                 setPizzaCategoryDialogSettings((prev) => ({
                                   ...prev,
-                                  maxFlavors: num,
+                                  halfHalfPricingRule: 'average',
                                 }))
                               }
                             >
-                              {num} sabores
+                              <p className="text-xs font-medium">Média</p>
                             </button>
-                          ))}
+                            <button
+                              type="button"
+                              className={cn(
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfPricingRule === 'highest'
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                              onClick={() =>
+                                setPizzaCategoryDialogSettings((prev) => ({
+                                  ...prev,
+                                  halfHalfPricingRule: 'highest',
+                                }))
+                              }
+                            >
+                              <p className="text-xs font-medium">Maior</p>
+                            </button>
+                            <button
+                              type="button"
+                              className={cn(
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfPricingRule === 'sum'
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                              onClick={() =>
+                                setPizzaCategoryDialogSettings((prev) => ({
+                                  ...prev,
+                                  halfHalfPricingRule: 'sum',
+                                }))
+                              }
+                            >
+                              <p className="text-xs font-medium">Soma</p>
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {pizzaCategoryDialogSettings.halfHalfPricingRule === 'average' && '(R$60 + R$40) / 2 = R$50 ✓ Procon'}
+                            {pizzaCategoryDialogSettings.halfHalfPricingRule === 'highest' && 'R$60 + R$40 = R$60 ⚠️'}
+                            {pizzaCategoryDialogSettings.halfHalfPricingRule === 'sum' && '(R$60/2) + (R$40/2) = R$50 ✓ Procon'}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Máximo de sabores</label>
+                          <div className="flex gap-1.5">
+                            {[2, 3, 4].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                className={cn(
+                                  "px-3 py-1.5 rounded-lg border-2 transition-all text-xs",
+                                  pizzaCategoryDialogSettings.maxFlavors === num
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                                onClick={() =>
+                                  setPizzaCategoryDialogSettings((prev) => ({
+                                    ...prev,
+                                    maxFlavors: num,
+                                  }))
+                                }
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Origem das opções</label>
+                          <p className="text-xs text-muted-foreground">Massa e borda vêm de qual sabor?</p>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                              type="button"
+                              className={cn(
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfOptionsSource === 'highest'
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                              onClick={() =>
+                                setPizzaCategoryDialogSettings((prev) => ({
+                                  ...prev,
+                                  halfHalfOptionsSource: 'highest',
+                                }))
+                              }
+                            >
+                              <p className="text-xs font-medium">Mais caro</p>
+                            </button>
+                            <button
+                              type="button"
+                              className={cn(
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfOptionsSource === 'lowest'
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                              onClick={() =>
+                                setPizzaCategoryDialogSettings((prev) => ({
+                                  ...prev,
+                                  halfHalfOptionsSource: 'lowest',
+                                }))
+                              }
+                            >
+                              <p className="text-xs font-medium">Mais barato</p>
+                            </button>
+                            <button
+                              type="button"
+                              className={cn(
+                                "p-2 rounded-lg border-2 text-center transition-all",
+                                pizzaCategoryDialogSettings.halfHalfOptionsSource === 'first'
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                              onClick={() =>
+                                setPizzaCategoryDialogSettings((prev) => ({
+                                  ...prev,
+                                  halfHalfOptionsSource: 'first',
+                                }))
+                              }
+                            >
+                              <p className="text-xs font-medium">Primeiro</p>
+                            </button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Origem das opções (massa, borda)</label>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Define de qual sabor serão usadas as opções de massa e borda no meio a meio
-                        </p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfOptionsSource === 'highest'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfOptionsSource: 'highest',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Usa as opções do sabor mais caro selecionado
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Mais caro</p>
-                            <p className="text-[10px] text-muted-foreground leading-tight">maior valor</p>
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfOptionsSource === 'lowest'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfOptionsSource: 'lowest',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Usa as opções do sabor mais barato selecionado
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Mais barato</p>
-                            <p className="text-[10px] text-muted-foreground leading-tight">menor valor</p>
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "p-2 rounded-lg border-2 text-center transition-all relative group",
-                              pizzaCategoryDialogSettings.halfHalfOptionsSource === 'first'
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                            onClick={() =>
-                              setPizzaCategoryDialogSettings((prev) => ({
-                                ...prev,
-                                halfHalfOptionsSource: 'first',
-                              }))
-                            }
-                          >
-                            <div className="absolute top-1 right-1">
-                              <div className="relative">
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
-                                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                  Usa as opções do primeiro sabor que o cliente selecionar
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-sm font-medium">Primeiro</p>
-                            <p className="text-[10px] text-muted-foreground leading-tight">1º selecionado</p>
-                          </button>
-                        </div>
-                      </div>
-
-                    </>
-                  )}
-                </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="categoryName">
+                      Nome da categoria *
+                    </label>
+                    <Input
+                      id="categoryName"
+                      value={categoryDialog.category?.name || ''}
+                      onChange={(e) =>
+                        setCategoryDialog((prev) => ({
+                          ...prev,
+                          category: {
+                            id: prev.category?.id || '',
+                            name: e.target.value,
+                            description: prev.category?.description || '',
+                            image_url: prev.category?.image_url || null,
+                            sort_order: prev.category?.sort_order || 0,
+                            is_active: prev.category?.is_active ?? true,
+                          },
+                        }))
+                      }
+                      placeholder="Ex: Pizzas, Bebidas, Sobremesas"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="categoryDescription">
+                      Descrição (opcional)
+                    </label>
+                    <Textarea
+                      id="categoryDescription"
+                      value={categoryDialog.category?.description || ''}
+                      onChange={(e) =>
+                        setCategoryDialog((prev) => ({
+                          ...prev,
+                          category: {
+                            id: prev.category?.id || '',
+                            name: prev.category?.name || '',
+                            description: e.target.value,
+                            image_url: prev.category?.image_url || null,
+                            sort_order: prev.category?.sort_order || 0,
+                            is_active: prev.category?.is_active ?? true,
+                          },
+                        }))
+                      }
+                      placeholder="Texto que aparece abaixo do nome da categoria"
+                    />
+                  </div>
+                </>
               )}
             </div>
             <DialogFooter>
