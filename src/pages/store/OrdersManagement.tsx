@@ -238,6 +238,7 @@ export default function OrdersManagement() {
   const [showWhatsappDialog, setShowWhatsappDialog] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<{ order: Order; newStatus: OrderStatus } | null>(null);
   const [whatsappNotificationsEnabled, setWhatsappNotificationsEnabled] = useState(true);
+  const [whatsappDriverShareEnabled, setWhatsappDriverShareEnabled] = useState(true);
   const [companyCnpj, setCompanyCnpj] = useState<string | null>(null);
   const [issuingNfe, setIssuingNfe] = useState(false);
   const [orderNfeStatus, setOrderNfeStatus] = useState<Record<string, string>>({});
@@ -340,6 +341,7 @@ export default function OrdersManagement() {
       setAutoPrintMode((company.auto_print_mode as 'kitchen' | 'full' | 'both') || 'kitchen');
       setCompanyCnpj(company.cnpj || null);
       setWhatsappNotificationsEnabled(company.whatsapp_notifications_enabled ?? true);
+      setWhatsappDriverShareEnabled((company as any).whatsapp_driver_share_enabled ?? true);
 
       // Backend safety net: remove any empty/buggy orders for this company
       // Executa em background sem bloquear o carregamento da página
@@ -635,8 +637,10 @@ export default function OrdersManagement() {
         );
       }
 
-      // Abrir WhatsApp com mensagem pronta para o entregador
-      sendWhatsappToDriver(orderId, driverId);
+      // Abrir WhatsApp com mensagem pronta para o entregador (se configurado)
+      if (whatsappDriverShareEnabled) {
+        sendWhatsappToDriver(orderId, driverId);
+      }
 
       // Reload orders to get updated data
       loadCompanyAndOrders();

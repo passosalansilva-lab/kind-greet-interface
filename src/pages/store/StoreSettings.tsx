@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -130,6 +131,7 @@ export default function StoreSettings() {
   const [autoPrintMode, setAutoPrintMode] = useState<'kitchen' | 'full' | 'both'>('kitchen');
   const [showFloatingOrdersButton, setShowFloatingOrdersButton] = useState(true);
   const [whatsappNotificationsEnabled, setWhatsappNotificationsEnabled] = useState(true);
+  const [whatsappDriverShareEnabled, setWhatsappDriverShareEnabled] = useState(true);
   const [showPixKeyOnMenu, setShowPixKeyOnMenu] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -192,6 +194,7 @@ export default function StoreSettings() {
         setAutoPrintMode(((data.auto_print_mode as string) as 'kitchen' | 'full' | 'both') || 'kitchen');
         setShowFloatingOrdersButton(data.show_floating_orders_button ?? true);
         setWhatsappNotificationsEnabled(data.whatsapp_notifications_enabled ?? true);
+        setWhatsappDriverShareEnabled((data as any).whatsapp_driver_share_enabled ?? true);
         setShowPixKeyOnMenu(!!(data as any).show_pix_key_on_menu);
         if (data.opening_hours && typeof data.opening_hours === 'object') {
           setOperatingHours(data.opening_hours as unknown as OperatingHours);
@@ -277,6 +280,7 @@ export default function StoreSettings() {
         auto_print_mode: autoPrintMode,
         show_floating_orders_button: showFloatingOrdersButton,
         whatsapp_notifications_enabled: whatsappNotificationsEnabled,
+        whatsapp_driver_share_enabled: whatsappDriverShareEnabled,
         show_pix_key_on_menu: showPixKeyOnMenu,
         cnpj: data.cnpj || null,
         razao_social: data.razaoSocial || null,
@@ -993,10 +997,10 @@ export default function StoreSettings() {
                     Controle se deseja ver a opção de notificar clientes via WhatsApp ao mudar status do pedido.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Mostrar opção de enviar WhatsApp</p>
+                      <p className="text-sm font-medium">Mostrar opção de enviar WhatsApp ao cliente</p>
                       <p className="text-xs text-muted-foreground">
                         Quando ativado, ao mudar o status de um pedido, aparecerá um diálogo perguntando se deseja notificar o cliente via WhatsApp.
                       </p>
@@ -1006,6 +1010,25 @@ export default function StoreSettings() {
                       <Switch
                         checked={whatsappNotificationsEnabled}
                         onCheckedChange={setWhatsappNotificationsEnabled}
+                      />
+                      <span className="text-xs font-medium">Ativado</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Abrir WhatsApp ao atribuir entregador</p>
+                      <p className="text-xs text-muted-foreground">
+                        Quando ativado, ao atribuir um entregador a um pedido, abre automaticamente o WhatsApp com os dados do pedido para enviar ao entregador.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Desativado</span>
+                      <Switch
+                        checked={whatsappDriverShareEnabled}
+                        onCheckedChange={setWhatsappDriverShareEnabled}
                       />
                       <span className="text-xs font-medium">Ativado</span>
                     </div>
