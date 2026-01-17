@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentInput } from "@/components/portal/CommentInput";
+import { CommentThread } from "@/components/portal/CommentThread";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,8 @@ interface Comment {
   created_at: string;
   user_id: string;
   company_name?: string;
+  parent_id?: string | null;
+  replies?: Comment[];
 }
 
 interface PortalPost {
@@ -263,13 +266,29 @@ export default function Portal() {
           return {
             ...comment,
             company_name: company?.name || "Usuário",
+            replies: [] as Comment[],
           };
         })
       );
 
+      // Organize comments into threads
+      const commentMap = new Map<string, Comment>();
+      commentsWithUserInfo.forEach((c) => commentMap.set(c.id, c));
+
+      const topLevelComments: Comment[] = [];
+      commentsWithUserInfo.forEach((comment) => {
+        if (comment.parent_id && commentMap.has(comment.parent_id)) {
+          const parent = commentMap.get(comment.parent_id)!;
+          parent.replies = parent.replies || [];
+          parent.replies.push(comment);
+        } else if (!comment.parent_id) {
+          topLevelComments.push(comment);
+        }
+      });
+
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === postId ? { ...p, comments: commentsWithUserInfo } : p
+          p.id === postId ? { ...p, comments: topLevelComments } : p
         )
       );
     } catch (error: any) {
@@ -283,7 +302,7 @@ export default function Portal() {
     }
   };
 
-  const handleSubmitComment = useCallback(async (postId: string, content: string) => {
+  const handleSubmitComment = useCallback(async (postId: string, content: string, parentId?: string) => {
     if (!user?.id) return;
 
     try {
@@ -293,20 +312,23 @@ export default function Portal() {
           post_id: postId,
           user_id: user.id,
           content,
+          parent_id: parentId || null,
         });
 
       if (error) throw error;
 
-      // Update comment count
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId ? { ...p, comment_count: p.comment_count + 1 } : p
-        )
-      );
+      // Update comment count only for top-level comments
+      if (!parentId) {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId ? { ...p, comment_count: p.comment_count + 1 } : p
+          )
+        );
+      }
 
       // Reload comments
       await loadComments(postId);
-      toast.success("Comentário enviado!");
+      toast.success(parentId ? "Resposta enviada!" : "Comentário enviado!");
     } catch (error: any) {
       console.error("Error submitting comment:", error);
       toast.error("Erro ao enviar comentário");
@@ -537,46 +559,16 @@ export default function Portal() {
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
                       {post.comments?.map((comment) => (
-                        <div
+                        <CommentThread
                           key={comment.id}
-                          className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                              {(comment.company_name || "U").charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-sm truncate">
-                                {comment.company_name}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {formatDistanceToNow(new Date(comment.created_at), {
-                                    addSuffix: true,
-                                    locale: ptBR,
-                                  })}
-                                </span>
-                                {comment.user_id === user?.id && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={() => deleteComment(post.id, comment.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {comment.content}
-                            </p>
-                          </div>
-                        </div>
+                          comment={comment}
+                          postId={post.id}
+                          userId={user?.id}
+                          onDelete={deleteComment}
+                          onReply={handleSubmitComment}
+                        />
                       ))}
                       {post.comments?.length === 0 && (
                         <p className="text-center text-sm text-muted-foreground py-4">
