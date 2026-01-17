@@ -231,14 +231,14 @@ BEGIN
       FROM public.companies 
       WHERE status = 'approved' AND owner_id IS NOT NULL
     LOOP
-      -- Inserir notificação para cada lojista
-      INSERT INTO public.notifications (user_id, title, message, type, link)
+      -- Inserir notificação para cada lojista (usando coluna data para o link)
+      INSERT INTO public.notifications (user_id, title, message, type, data)
       VALUES (
         owner_record.owner_id,
         '📢 Nova publicação no Portal',
         NEW.title,
         'info',
-        '/dashboard/portal'
+        jsonb_build_object('type', 'portal_post', 'post_id', NEW.id, 'link', '/dashboard/portal')
       );
     END LOOP;
   END IF;
