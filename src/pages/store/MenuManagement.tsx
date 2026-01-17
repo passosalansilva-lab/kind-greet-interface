@@ -1498,7 +1498,7 @@ export default function MenuManagement() {
                             <button
                               type="button"
                               className={cn(
-                                "p-2 rounded-lg border-2 text-center transition-all",
+                                "p-2 rounded-lg border-2 text-center transition-all relative group",
                                 pizzaCategoryDialogSettings.halfHalfPricingRule === 'average'
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/50"
@@ -1510,12 +1510,24 @@ export default function MenuManagement() {
                                 }))
                               }
                             >
+                              <div className="absolute -top-1 -right-1">
+                                <div className="relative">
+                                  <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center cursor-help">
+                                    <Info className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </div>
+                                  <div className="absolute bottom-full right-0 mb-2 w-44 p-2 bg-popover text-popover-foreground text-[10px] rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                    <p className="font-semibold mb-1">Média dos sabores</p>
+                                    <p>Soma os preços e divide por 2.</p>
+                                    <p className="mt-1 text-muted-foreground">Ex: R$60 + R$40 = <span className="text-primary font-bold">R$50</span></p>
+                                  </div>
+                                </div>
+                              </div>
                               <p className="text-xs font-medium">Média</p>
                             </button>
                             <button
                               type="button"
                               className={cn(
-                                "p-2 rounded-lg border-2 text-center transition-all",
+                                "p-2 rounded-lg border-2 text-center transition-all relative group",
                                 pizzaCategoryDialogSettings.halfHalfPricingRule === 'highest'
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/50"
@@ -1527,12 +1539,25 @@ export default function MenuManagement() {
                                 }))
                               }
                             >
+                              <div className="absolute -top-1 -right-1">
+                                <div className="relative">
+                                  <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center cursor-help">
+                                    <Info className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </div>
+                                  <div className="absolute bottom-full right-0 mb-2 w-44 p-2 bg-popover text-popover-foreground text-[10px] rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                    <p className="font-semibold mb-1">Sabor mais caro</p>
+                                    <p>Cobra o valor do sabor maior.</p>
+                                    <p className="mt-1 text-muted-foreground">Ex: R$60 + R$40 = <span className="text-primary font-bold">R$60</span></p>
+                                    <p className="mt-1 text-amber-500 text-[9px]">⚠️ Procon considera abusivo</p>
+                                  </div>
+                                </div>
+                              </div>
                               <p className="text-xs font-medium">Maior</p>
                             </button>
                             <button
                               type="button"
                               className={cn(
-                                "p-2 rounded-lg border-2 text-center transition-all",
+                                "p-2 rounded-lg border-2 text-center transition-all relative group",
                                 pizzaCategoryDialogSettings.halfHalfPricingRule === 'sum'
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/50"
@@ -1544,6 +1569,18 @@ export default function MenuManagement() {
                                 }))
                               }
                             >
+                              <div className="absolute -top-1 -right-1">
+                                <div className="relative">
+                                  <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center cursor-help">
+                                    <Info className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </div>
+                                  <div className="absolute bottom-full right-0 mb-2 w-44 p-2 bg-popover text-popover-foreground text-[10px] rounded-md shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                    <p className="font-semibold mb-1">Soma proporcional</p>
+                                    <p>Cobra metade de cada sabor.</p>
+                                    <p className="mt-1 text-muted-foreground">Ex: R$60/2 + R$40/2 = <span className="text-primary font-bold">R$50</span></p>
+                                  </div>
+                                </div>
+                              </div>
                               <p className="text-xs font-medium">Soma</p>
                             </button>
                           </div>
