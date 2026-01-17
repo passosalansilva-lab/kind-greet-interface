@@ -109,9 +109,20 @@ export function HalfHalfPizzaModal({
       .trim();
 
   const getFlavorPriceForSelectedSize = (product: Product): number => {
-    if (!selectedSize) return Number(product.price);
+    if (!selectedSize) {
+      console.log('[HalfHalf] Sem tamanho selecionado, usando product.price:', product.price);
+      return Number(product.price);
+    }
     const key = normalizeSizeKey(selectedSize.name);
     const price = sizePriceByProduct[product.id]?.[key];
+    console.log('[HalfHalf] getFlavorPriceForSelectedSize:', {
+      product: product.name,
+      selectedSizeName: selectedSize.name,
+      key,
+      priceFromMap: price,
+      productPrice: product.price,
+      sizePriceByProduct: sizePriceByProduct[product.id],
+    });
     if (typeof price === 'number' && price > 0) return price;
     return Number(product.price);
   };
