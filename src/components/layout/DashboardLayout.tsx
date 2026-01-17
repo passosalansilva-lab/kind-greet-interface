@@ -65,6 +65,7 @@ import { useWaiterCallNotifications } from "@/hooks/useWaiterCallNotifications";
 import { useUserCompany } from "@/hooks/useUserCompany";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { SidebarOrdersBadge } from "./SidebarOrdersBadge";
+import { PortalNotificationBadge } from "./PortalNotificationBadge";
 import { PendingOrdersAlert } from "./PendingOrdersAlert";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -95,6 +96,7 @@ interface NavItem {
   roles?: string[];
   permission?: string;
   featureKey?: string; // Chave da feature para verificar acesso
+  showPortalBadge?: boolean; // Mostrar badge de notificações do portal
 }
 
 interface NavGroup {
@@ -180,7 +182,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Suporte",
     items: [
-      { label: "Portal de Novidades", href: "/dashboard/portal", icon: Newspaper, roles: ["super_admin", "store_owner"], featureKey: "portal" },
+      { label: "Portal de Novidades", href: "/dashboard/portal", icon: Newspaper, roles: ["super_admin", "store_owner"], featureKey: "portal", showPortalBadge: true },
       { label: "Ajuda", href: "/dashboard/help", icon: HelpCircle, roles: ["super_admin", "store_owner", "delivery_driver", "store_staff"], featureKey: "help" },
       { label: "Doc. Integrações", href: "/dashboard/integrations-doc", icon: BookOpen, roles: ["super_admin", "store_owner"], featureKey: "integrations_doc" },
     ],
@@ -524,6 +526,7 @@ const canSeeItem = (item: NavItem): boolean => {
                             <item.icon className="h-5 w-5" />
                             <span className="flex-1">{item.label}</span>
                             {isPedidos && <SidebarOrdersBadge />}
+                            {item.showPortalBadge && <PortalNotificationBadge />}
                             {premiumVariant && <PremiumBadge variant={premiumVariant} />}
                           </Link>
                         </li>
