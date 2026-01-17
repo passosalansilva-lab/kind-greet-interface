@@ -31,7 +31,12 @@ interface Notification {
 function getNotificationRoute(notification: Notification): string | null {
   const { type, data } = notification;
   
-  // Check for specific data fields first
+  // Check for explicit link in data first (used by portal posts, etc.)
+  if (data?.link && typeof data.link === 'string') {
+    return data.link;
+  }
+  
+  // Check for specific data fields
   if (data?.order_id) {
     return '/dashboard/orders';
   }
