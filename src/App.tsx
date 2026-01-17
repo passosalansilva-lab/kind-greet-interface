@@ -75,6 +75,8 @@ import EmailSignature from "./pages/EmailSignature";
 import PublicKDS from "./pages/PublicKDS";
 import TermsOfUse from "./pages/TermsOfUse";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AdminPortal from "./pages/admin/AdminPortal";
+import Portal from "./pages/store/Portal";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -553,6 +555,22 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <AiApiLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/admin/portal"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <AdminPortal />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/portal"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin", "store_owner"]}>
+                    <Portal />
                   </ProtectedRoute>
                 }
               />

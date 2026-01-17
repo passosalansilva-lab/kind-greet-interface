@@ -46,6 +46,7 @@ import {
   Mail,
   Receipt,
   Brain,
+  Newspaper,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,6 +107,7 @@ const superAdminNavItems: NavItem[] = [
   { label: "Empresas", href: "/dashboard/companies", icon: Building2, roles: ["super_admin"] },
   { label: "Gerenciar Planos", href: "/dashboard/admin/plans", icon: Sliders, roles: ["super_admin"] },
   { label: "Funcionalidades", href: "/dashboard/admin/features", icon: Package, roles: ["super_admin"] },
+  { label: "Portal de Novidades", href: "/dashboard/admin/portal", icon: Megaphone, roles: ["super_admin"] },
   { label: "Transações Cartão", href: "/dashboard/admin/card-transactions", icon: CreditCard, roles: ["super_admin"] },
   { label: "Nota Fiscal (NFe)", href: "/dashboard/admin/nfe", icon: FileText, roles: ["super_admin"] },
   { label: "Logs do Sistema", href: "/dashboard/admin/logs", icon: ScrollText, roles: ["super_admin"] },
@@ -178,6 +180,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Suporte",
     items: [
+      { label: "Portal de Novidades", href: "/dashboard/portal", icon: Newspaper, roles: ["super_admin", "store_owner"], featureKey: "portal" },
       { label: "Ajuda", href: "/dashboard/help", icon: HelpCircle, roles: ["super_admin", "store_owner", "delivery_driver", "store_staff"], featureKey: "help" },
       { label: "Doc. Integrações", href: "/dashboard/integrations-doc", icon: BookOpen, roles: ["super_admin", "store_owner"], featureKey: "integrations_doc" },
     ],
