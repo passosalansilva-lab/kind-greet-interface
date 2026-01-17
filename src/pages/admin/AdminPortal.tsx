@@ -243,7 +243,9 @@ export default function AdminPortal() {
       resetForm();
     } catch (error: any) {
       console.error("Error saving post:", error);
-      toast.error("Erro ao salvar post");
+      const msg = error?.message || error?.error_description || "Erro ao salvar post";
+      const details = error?.details ? `: ${error.details}` : "";
+      toast.error(`${msg}${details}`);
     } finally {
       setSaving(false);
     }
