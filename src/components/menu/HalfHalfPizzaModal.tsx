@@ -834,7 +834,7 @@ export function HalfHalfPizzaModal({
 
                       <h3 className="font-semibold text-sm mb-0.5">{product.name}</h3>
                       <p className="text-xs font-semibold text-primary mb-0.5">
-                        R$ {getFlavorPriceForSelectedSize(product).toFixed(2)}
+                        ½ R$ {(getFlavorPriceForSelectedSize(product) / maxFlavors).toFixed(2)}
                       </p>
                       {product.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2">
