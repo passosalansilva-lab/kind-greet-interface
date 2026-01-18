@@ -302,6 +302,16 @@ export default function OrdersManagement() {
             setOrders((prev) =>
               prev.map((o) => (o.id === payload.new.id ? { ...o, ...payload.new } : o))
             );
+            
+            // Atualiza também o pedido selecionado no painel lateral se for o mesmo
+            setSelectedOrder((prev) => 
+              prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev
+            );
+            
+            // Atualiza também o pedido do modal se for o mesmo
+            setModalOrder((prev) => 
+              prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev
+            );
 
             // Som configurado para mudança de status
             if (payload.new.status !== payload.old?.status) {
