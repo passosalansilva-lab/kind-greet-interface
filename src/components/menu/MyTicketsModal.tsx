@@ -56,7 +56,21 @@ export function MyTicketsModal({ open, onClose, customerId, companyId }: MyTicke
   const loadData = async () => {
     setLoading(true);
     try {
-      // Check if lottery is enabled
+      // First check if the lottery FEATURE is enabled for this company (super admin control)
+      const { data: featureData } = await supabase
+        .from('company_features' as any)
+        .select('is_active')
+        .eq('company_id', companyId)
+        .eq('feature_key', 'lottery')
+        .maybeSingle() as { data: { is_active: boolean } | null };
+
+      // If feature is explicitly disabled by super admin, don't show anything
+      if (featureData && !featureData.is_active) {
+        setLoading(false);
+        return;
+      }
+
+      // Then check lottery settings (store-level control)
       const { data: settingsData, error: settingsError } = await supabase
         .from('lottery_settings')
         .select('is_enabled, prize_description, draw_frequency, tickets_per_order, tickets_per_amount')
