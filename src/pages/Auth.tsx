@@ -6,6 +6,7 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuth } from '@/hooks/useAuth';
 import { ChromaKeyImage } from '@/components/ui/chroma-key-image';
 import { useSystemLogo } from '@/hooks/useSystemLogo';
+import { ElectronTitleBar, useIsElectron } from '@/components/layout/ElectronTitleBar';
 import foodPizza from '@/assets/food-pizza-transparent.png';
 import foodBurger from '@/assets/food-burger-transparent.png';
 import foodAcai from '@/assets/food-acai-transparent.png';
@@ -36,6 +37,7 @@ export default function Auth() {
   const { logoUrl } = useSystemLogo("landing");
   const navigate = useNavigate();
   const location = useLocation();
+  const isElectronApp = useIsElectron();
 
   // Force light theme on Auth page
   useEffect(() => {
@@ -90,9 +92,12 @@ export default function Auth() {
 
   return (
     <GoogleReCaptchaProvider reCaptchaKey={RECAPTCHA_SITE_KEY}>
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
+      <div className={`min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5 ${isElectronApp ? 'pt-8' : ''}`}>
+        {/* Electron Title Bar */}
+        <ElectronTitleBar />
+
         {/* Logo no canto superior esquerdo */}
-        <div className="absolute top-6 left-6 z-20">
+        <div className={`absolute ${isElectronApp ? 'top-14' : 'top-6'} left-6 z-20`}>
           <ChromaKeyImage
             src={logoUrl}
             alt="Cardápio On"
@@ -102,7 +107,7 @@ export default function Auth() {
 
         <div className="flex flex-1">
           {/* Left side - Form */}
-          <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 pt-20 sm:pt-8">
+          <div className={`w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 ${isElectronApp ? 'pt-24 sm:pt-16' : 'pt-20 sm:pt-8'}`}>
             <div className="w-full max-w-md animate-fade-in">
               <div className="text-center mb-8">
                 <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">

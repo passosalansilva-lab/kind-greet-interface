@@ -418,26 +418,26 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
     return (
       <div className="space-y-6">
         {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-semibold">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               ✓
             </div>
-            <span className="text-sm text-muted-foreground">Empresa</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Empresa</span>
           </div>
-          <div className="w-8 h-px bg-success" />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-semibold">
+          <div className="w-4 sm:w-8 h-px bg-success" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               ✓
             </div>
-            <span className="text-sm text-muted-foreground">Dados</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Dados</span>
           </div>
-          <div className="w-8 h-px bg-primary" />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+          <div className="w-4 sm:w-8 h-px bg-primary" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               3
             </div>
-            <span className="text-sm font-medium text-foreground">Verificar</span>
+            <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">Verificar</span>
           </div>
         </div>
 
@@ -520,26 +520,26 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
     return (
       <form onSubmit={step1Form.handleSubmit(handleStep1Submit)} className="space-y-5">
         {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               1
             </div>
-            <span className="text-sm font-medium text-foreground">Empresa</span>
+            <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">Empresa</span>
           </div>
-          <div className="w-8 h-px bg-border" />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold">
+          <div className="w-4 sm:w-8 h-px bg-border" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               2
             </div>
-            <span className="text-sm text-muted-foreground">Seus dados</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Dados</span>
           </div>
-          <div className="w-8 h-px bg-border" />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold">
+          <div className="w-4 sm:w-8 h-px bg-border" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
               3
             </div>
-            <span className="text-sm text-muted-foreground">Verificar</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Verificar</span>
           </div>
         </div>
 
@@ -604,26 +604,26 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
   return (
     <form onSubmit={step2Form.handleSubmit(handleStep2Submit)} className="space-y-5">
       {/* Step indicator */}
-      <div className="flex items-center justify-center gap-2 mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-semibold">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
             ✓
           </div>
-          <span className="text-sm text-muted-foreground">Empresa</span>
+          <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Empresa</span>
         </div>
-        <div className="w-8 h-px bg-primary" />
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+        <div className="w-4 sm:w-8 h-px bg-primary" />
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
             2
           </div>
-          <span className="text-sm font-medium text-foreground">Seus dados</span>
+          <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">Dados</span>
         </div>
-        <div className="w-8 h-px bg-border" />
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold">
+        <div className="w-4 sm:w-8 h-px bg-border" />
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
             3
           </div>
-          <span className="text-sm text-muted-foreground">Verificar</span>
+          <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Verificar</span>
         </div>
       </div>
 
