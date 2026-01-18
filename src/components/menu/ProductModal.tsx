@@ -1313,7 +1313,7 @@ export function CartDrawer({
                           </Button>
                         </div>
                         <span className="font-bold text-primary text-sm">
-                          R$ {(item.price * item.quantity).toFixed(2)}
+                          R$ {((item.price + item.options.reduce((sum, o) => sum + o.priceModifier, 0)) * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     </div>
