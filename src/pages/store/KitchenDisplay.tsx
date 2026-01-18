@@ -18,7 +18,11 @@ import {
   Link2,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  User,
+  FileText,
+  Package,
+  ArrowRight
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,6 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
 interface OrderItem {
   id: string;
@@ -55,10 +60,10 @@ interface KDSOrder {
 }
 
 const statusConfig = {
-  pending: { label: "Pendente", color: "bg-yellow-500", textColor: "text-yellow-500" },
-  confirmed: { label: "Confirmado", color: "bg-blue-500", textColor: "text-blue-500" },
-  preparing: { label: "Preparando", color: "bg-orange-500", textColor: "text-orange-500" },
-  ready: { label: "Pronto", color: "bg-green-500", textColor: "text-green-500" },
+  pending: { label: "Pendente", color: "bg-yellow-500", textColor: "text-yellow-500", bgLight: "bg-yellow-500/10" },
+  confirmed: { label: "Confirmado", color: "bg-blue-500", textColor: "text-blue-500", bgLight: "bg-blue-500/10" },
+  preparing: { label: "Preparando", color: "bg-orange-500", textColor: "text-orange-500", bgLight: "bg-orange-500/10" },
+  ready: { label: "Pronto", color: "bg-green-500", textColor: "text-green-500", bgLight: "bg-green-500/10" },
 };
 
 export default function KitchenDisplay() {
@@ -71,6 +76,7 @@ export default function KitchenDisplay() {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // Get the KDS link
   const kdsLink = company?.kds_token 
@@ -113,6 +119,11 @@ export default function KitchenDisplay() {
 
       if (error) throw error;
       setOrders(data || []);
+      
+      // Auto-select first order if none selected
+      if (data && data.length > 0 && !selectedOrderId) {
+        setSelectedOrderId(data[0].id);
+      }
     } catch (error) {
       console.error("Error fetching KDS orders:", error);
     } finally {
@@ -158,7 +169,6 @@ export default function KitchenDisplay() {
     
     setGeneratingLink(true);
     try {
-      // Generate a random token
       const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
       
       const { error } = await supabase
@@ -218,6 +228,16 @@ export default function KitchenDisplay() {
         description: `Pedido marcado como ${statusConfig[newStatus as keyof typeof statusConfig]?.label || newStatus}`,
       });
 
+      // If order is no longer in KDS view, select next order
+      if (newStatus === "ready") {
+        const remainingOrders = orders.filter(o => o.id !== orderId);
+        if (remainingOrders.length > 0) {
+          setSelectedOrderId(remainingOrders[0].id);
+        } else {
+          setSelectedOrderId(null);
+        }
+      }
+
       fetchOrders();
     } catch (error) {
       console.error("Error updating order status:", error);
@@ -273,7 +293,6 @@ export default function KitchenDisplay() {
 
     if (Array.isArray(options)) {
       options.forEach((opt: any) => {
-        // Formato antigo: { groupName, selectedOptions }
         if (opt.groupName && opt.selectedOptions) {
           hasAnyGroupName = true;
           if (!grouped[opt.groupName]) grouped[opt.groupName] = [];
@@ -281,14 +300,12 @@ export default function KitchenDisplay() {
             grouped[opt.groupName].push(sel.name);
           });
         }
-        // Formato novo: { name, priceModifier, groupName? }
         else if (opt.name) {
           const group = opt.groupName || 'Itens';
           if (opt.groupName) hasAnyGroupName = true;
           if (!grouped[group]) grouped[group] = [];
           grouped[group].push(opt.name);
         }
-        // Pizza meio a meio
         if (opt.half_half_flavors) {
           hasAnyGroupName = true;
           if (!grouped['Pizza']) grouped['Pizza'] = [];
@@ -297,7 +314,6 @@ export default function KitchenDisplay() {
       });
     }
 
-    // Se nenhum item tem groupName, retorna tudo como "Itens"
     const entries = Object.entries(grouped);
     if (!hasAnyGroupName && entries.length === 1 && entries[0][0] === 'Itens') {
       return entries.map(([groupName, items]) => ({ groupName: '', items }));
@@ -308,6 +324,9 @@ export default function KitchenDisplay() {
 
   const confirmedOrders = orders.filter((o) => o.status === "confirmed");
   const preparingOrders = orders.filter((o) => o.status === "preparing");
+  const allQueueOrders = [...confirmedOrders, ...preparingOrders];
+  
+  const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
   if (companyLoading || loading) {
     return (
@@ -321,12 +340,12 @@ export default function KitchenDisplay() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="flex flex-col h-[calc(100vh-120px)]">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold">Cozinha (KDS)</h1>
-            <p className="text-muted-foreground">Visualize e gerencie os pedidos da cozinha em tempo real</p>
+            <p className="text-muted-foreground text-sm">Gerencie os pedidos da cozinha em tempo real</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -427,300 +446,322 @@ export default function KitchenDisplay() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Clock className="h-5 w-5 text-blue-500" />
+        {/* Stats Cards - Compact */}
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          <Card className="py-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-500/10">
+                  <Clock className="h-4 w-4 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{confirmedOrders.length}</p>
+                  <p className="text-xl font-bold">{confirmedOrders.length}</p>
                   <p className="text-xs text-muted-foreground">Aguardando</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-500/10">
-                  <ChefHat className="h-5 w-5 text-orange-500" />
+          <Card className="py-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-orange-500/10">
+                  <ChefHat className="h-4 w-4 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{preparingOrders.length}</p>
+                  <p className="text-xl font-bold">{preparingOrders.length}</p>
                   <p className="text-xs text-muted-foreground">Preparando</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/10">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+          <Card className="py-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{orders.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Ativos</p>
+                  <p className="text-xl font-bold">{orders.length}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-500/10">
-                  <Timer className="h-5 w-5 text-red-500" />
+          <Card className="py-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-500/10">
+                  <Timer className="h-4 w-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-xl font-bold">
                     {orders.filter((o) => isOrderLate(o.created_at)).length}
                   </p>
-                  <p className="text-xs text-muted-foreground">Atrasados (+15min)</p>
+                  <p className="text-xs text-muted-foreground">Atrasados</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Orders Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Confirmed / Waiting */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-500" />
-              Aguardando Preparo ({confirmedOrders.length})
-            </h2>
-            <ScrollArea className="h-[calc(100vh-380px)]">
-              <div className="space-y-4 pr-4">
+        {/* Main Content - Queue + Details */}
+        <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+          {/* Left Side - Order Queue */}
+          <div className="col-span-4 flex flex-col min-h-0">
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Fila de Pedidos</h2>
+              <Badge variant="secondary" className="ml-auto">
+                {allQueueOrders.length}
+              </Badge>
+            </div>
+            
+            <ScrollArea className="flex-1 pr-2">
+              <div className="space-y-2">
                 <AnimatePresence>
-                  {confirmedOrders.map((order) => (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -100 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Card
-                        className={cn(
-                          "border-l-4 border-l-blue-500",
-                          isOrderLate(order.created_at) && "border-l-red-500 bg-red-500/5"
-                        )}
+                  {allQueueOrders.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Package className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">Nenhum pedido na fila</p>
+                    </div>
+                  ) : (
+                    allQueueOrders.map((order, index) => (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
                       >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle className="text-base flex items-center gap-2">
-                                #{order.id.slice(0, 8).toUpperCase()}
-                                {order.table_session_id && (
-                                  <Badge variant="outline">Mesa</Badge>
-                                )}
-                              </CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                {order.customer_name}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  isOrderLate(order.created_at)
-                                    ? "border-red-500 text-red-500"
-                                    : "border-blue-500 text-blue-500"
-                                )}
-                              >
-                                <Timer className="h-3 w-3 mr-1" />
-                                {getTimeSince(order.created_at)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {/* Items */}
-                          <div className="space-y-2">
-                            {order.order_items
-                              .filter((item) => item.requires_preparation)
-                              .map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-start gap-2 text-sm"
-                                >
-                                  <span className="font-bold text-primary">
-                                    {item.quantity}x
-                                  </span>
-                                  <div className="flex-1">
-                                    <p className="font-medium">{item.product_name}</p>
-                                    {formatOptions(item.options).map((group, i) => (
-                                      <div key={i} className="text-xs text-muted-foreground">
-                                        {group.groupName ? (
-                                          <><span className="font-medium">{group.groupName}:</span> {group.items.join(', ')}</>
-                                        ) : (
-                                          group.items.map((itemName, idx) => (
-                                            <span key={idx}>• {itemName}{idx < group.items.length - 1 ? ' ' : ''}</span>
-                                          ))
-                                        )}
-                                      </div>
-                                    ))}
-                                    {item.notes && (
-                                      <p className="text-xs text-orange-600 font-medium">
-                                        📝 {item.notes}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-
-                          {order.notes && (
-                            <div className="p-2 bg-yellow-500/10 rounded-lg">
-                              <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                                📝 Obs: {order.notes}
-                              </p>
-                            </div>
+                        <Card
+                          className={cn(
+                            "cursor-pointer transition-all hover:shadow-md border-l-4",
+                            selectedOrderId === order.id 
+                              ? "ring-2 ring-primary shadow-md" 
+                              : "hover:border-primary/50",
+                            order.status === "confirmed" 
+                              ? "border-l-blue-500" 
+                              : "border-l-orange-500",
+                            isOrderLate(order.created_at) && "border-l-red-500 bg-red-500/5"
                           )}
-
-                          <Button
-                            className="w-full"
-                            onClick={() => updateOrderStatus(order.id, "preparing")}
-                          >
-                            <ChefHat className="h-4 w-4 mr-2" />
-                            Iniciar Preparo
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                          onClick={() => setSelectedOrderId(order.id)}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-sm">
+                                    #{order.id.slice(0, 6).toUpperCase()}
+                                  </span>
+                                  {order.table_session_id && (
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                      Mesa
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {order.customer_name}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge 
+                                    variant="secondary"
+                                    className={cn(
+                                      "text-xs px-1.5 py-0",
+                                      statusConfig[order.status as keyof typeof statusConfig]?.bgLight,
+                                      statusConfig[order.status as keyof typeof statusConfig]?.textColor
+                                    )}
+                                  >
+                                    {statusConfig[order.status as keyof typeof statusConfig]?.label}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {order.order_items.filter(i => i.requires_preparation).length} itens
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-xs",
+                                    isOrderLate(order.created_at)
+                                      ? "border-red-500 text-red-500"
+                                      : "border-muted-foreground/30"
+                                  )}
+                                >
+                                  <Timer className="h-3 w-3 mr-1" />
+                                  {getTimeSince(order.created_at)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
                 </AnimatePresence>
-
-                {confirmedOrders.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Clock className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                    <p>Nenhum pedido aguardando</p>
-                  </div>
-                )}
               </div>
             </ScrollArea>
           </div>
 
-          {/* Preparing */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <ChefHat className="h-5 w-5 text-orange-500" />
-              Em Preparo ({preparingOrders.length})
-            </h2>
-            <ScrollArea className="h-[calc(100vh-380px)]">
-              <div className="space-y-4 pr-4">
-                <AnimatePresence>
-                  {preparingOrders.map((order) => (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: 100 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Card
+          {/* Right Side - Order Details */}
+          <div className="col-span-8 flex flex-col min-h-0">
+            {selectedOrder ? (
+              <motion.div
+                key={selectedOrder.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col h-full"
+              >
+                <Card className="flex-1 flex flex-col">
+                  {/* Order Header */}
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <CardTitle className="text-xl">
+                            Pedido #{selectedOrder.id.slice(0, 8).toUpperCase()}
+                          </CardTitle>
+                          <Badge 
+                            className={cn(
+                              "text-sm",
+                              statusConfig[selectedOrder.status as keyof typeof statusConfig]?.bgLight,
+                              statusConfig[selectedOrder.status as keyof typeof statusConfig]?.textColor
+                            )}
+                          >
+                            {statusConfig[selectedOrder.status as keyof typeof statusConfig]?.label}
+                          </Badge>
+                          {selectedOrder.table_session_id && (
+                            <Badge variant="outline">Mesa</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <User className="h-4 w-4" />
+                            {selectedOrder.customer_name}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {getTimeSince(selectedOrder.created_at)} atrás
+                          </div>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
                         className={cn(
-                          "border-l-4 border-l-orange-500",
-                          isOrderLate(order.created_at) && "border-l-red-500 bg-red-500/5"
+                          "text-lg px-3 py-1",
+                          isOrderLate(selectedOrder.created_at)
+                            ? "border-red-500 text-red-500 bg-red-500/10"
+                            : "border-muted-foreground/30"
                         )}
                       >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle className="text-base flex items-center gap-2">
-                                #{order.id.slice(0, 8).toUpperCase()}
-                                {order.table_session_id && (
-                                  <Badge variant="outline">Mesa</Badge>
-                                )}
-                              </CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                {order.customer_name}
-                              </p>
+                        <Timer className="h-4 w-4 mr-2" />
+                        {getTimeSince(selectedOrder.created_at)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <Separator />
+
+                  {/* Order Items */}
+                  <CardContent className="flex-1 overflow-auto py-4">
+                    <div className="space-y-4">
+                      {selectedOrder.order_items
+                        .filter((item) => item.requires_preparation)
+                        .map((item, idx) => (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="flex gap-4 p-4 rounded-lg bg-muted/50 border"
+                          >
+                            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary font-bold text-xl shrink-0">
+                              {item.quantity}x
                             </div>
-                            <div className="text-right">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  isOrderLate(order.created_at)
-                                    ? "border-red-500 text-red-500"
-                                    : "border-orange-500 text-orange-500"
-                                )}
-                              >
-                                <Timer className="h-3 w-3 mr-1" />
-                                {getTimeSince(order.created_at)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {/* Items */}
-                          <div className="space-y-2">
-                            {order.order_items
-                              .filter((item) => item.requires_preparation)
-                              .map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-start gap-2 text-sm"
-                                >
-                                  <span className="font-bold text-primary">
-                                    {item.quantity}x
-                                  </span>
-                                  <div className="flex-1">
-                                    <p className="font-medium">{item.product_name}</p>
-                                    {formatOptions(item.options).map((group, i) => (
-                                      <div key={i} className="text-xs text-muted-foreground">
-                                        {group.groupName ? (
-                                          <><span className="font-medium">{group.groupName}:</span> {group.items.join(', ')}</>
-                                        ) : (
-                                          group.items.map((itemName, idx) => (
-                                            <span key={idx}>• {itemName}{idx < group.items.length - 1 ? ' ' : ''}</span>
-                                          ))
-                                        )}
-                                      </div>
-                                    ))}
-                                    {item.notes && (
-                                      <p className="text-xs text-orange-600 font-medium">
-                                        📝 {item.notes}
-                                      </p>
-                                    )}
-                                  </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-lg">{item.product_name}</h4>
+                              {formatOptions(item.options).map((group, i) => (
+                                <div key={i} className="text-sm text-muted-foreground mt-1">
+                                  {group.groupName ? (
+                                    <>
+                                      <span className="font-medium">{group.groupName}:</span>{" "}
+                                      {group.items.join(', ')}
+                                    </>
+                                  ) : (
+                                    group.items.map((itemName, idx) => (
+                                      <span key={idx} className="inline-block mr-2">
+                                        • {itemName}
+                                      </span>
+                                    ))
+                                  )}
                                 </div>
                               ))}
-                          </div>
-
-                          {order.notes && (
-                            <div className="p-2 bg-yellow-500/10 rounded-lg">
-                              <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                                📝 Obs: {order.notes}
-                              </p>
+                              {item.notes && (
+                                <div className="mt-2 p-2 rounded bg-orange-500/10 text-orange-700 dark:text-orange-400 text-sm flex items-start gap-2">
+                                  <FileText className="h-4 w-4 shrink-0 mt-0.5" />
+                                  {item.notes}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </motion.div>
+                        ))}
 
-                          <Button
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            onClick={() => updateOrderStatus(order.id, "ready")}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Marcar como Pronto
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                      {selectedOrder.order_items.filter(i => i.requires_preparation).length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                          <p>Nenhum item requer preparo</p>
+                        </div>
+                      )}
+                    </div>
 
-                {preparingOrders.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ChefHat className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                    <p>Nenhum pedido em preparo</p>
+                    {selectedOrder.notes && (
+                      <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                        <div className="flex items-start gap-2 text-yellow-700 dark:text-yellow-400">
+                          <FileText className="h-5 w-5 shrink-0" />
+                          <div>
+                            <p className="font-medium">Observações do pedido:</p>
+                            <p className="text-sm">{selectedOrder.notes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+
+                  <Separator />
+
+                  {/* Action Buttons */}
+                  <div className="p-4">
+                    {selectedOrder.status === "confirmed" ? (
+                      <Button
+                        className="w-full h-14 text-lg"
+                        onClick={() => updateOrderStatus(selectedOrder.id, "preparing")}
+                      >
+                        <ChefHat className="h-6 w-6 mr-3" />
+                        Iniciar Preparo
+                        <ArrowRight className="h-5 w-5 ml-3" />
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full h-14 text-lg bg-green-600 hover:bg-green-700"
+                        onClick={() => updateOrderStatus(selectedOrder.id, "ready")}
+                      >
+                        <CheckCircle className="h-6 w-6 mr-3" />
+                        Marcar como Pronto
+                        <ArrowRight className="h-5 w-5 ml-3" />
+                      </Button>
+                    )}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
+                </Card>
+              </motion.div>
+            ) : (
+              <Card className="flex-1 flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <Package className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                  <p className="text-lg">Selecione um pedido na fila</p>
+                  <p className="text-sm">para ver os detalhes e gerenciar</p>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
