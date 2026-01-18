@@ -52,6 +52,8 @@ import { SubscriptionAlert } from '@/components/SubscriptionAlert';
 import { PrintReceipt } from '@/components/orders/PrintReceipt';
 import { CancelOrderDialog } from '@/components/orders/CancelOrderDialog';
 import { OrderRefundHistory } from '@/components/orders/OrderRefundHistory';
+import { OrderQueue } from '@/components/orders/OrderQueue';
+import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel';
 import { Database } from '@/integrations/supabase/types';
 import { formatDistanceToNow, startOfDay, startOfWeek, startOfMonth, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1378,44 +1380,44 @@ export default function OrdersManagement() {
           </TabsList>
 
           <TabsContent value="active" className="mt-6">
-            {/* Kanban-style view for active orders */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 h-[calc(100vh-320px)] min-h-[400px]">
-              {(['pending', 'confirmed', 'preparing', 'ready', 'awaiting_driver', 'out_for_delivery'] as OrderStatus[]).map(
-                (status) => {
-                  const StatusIcon = statusConfig[status].icon;
-                  return (
-                    <div key={status} className="flex flex-col h-full min-h-0">
-                      {/* Column header */}
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 shrink-0">
-                        <div className={`p-1.5 rounded-md ${statusConfig[status].color}/20`}>
-                          <StatusIcon className={`h-4 w-4 ${statusConfig[status].color.replace('bg-', 'text-').replace('-500', '-600')}`} />
-                        </div>
-                        <h3 className="font-medium text-sm flex-1">{statusConfig[status].label}</h3>
-                        <Badge variant="secondary" className="font-semibold">
-                          {ordersByStatus[status]?.length || 0}
-                        </Badge>
-                      </div>
-                      
-                      {/* Orders list with scroll */}
-                      <div className="flex-1 overflow-y-auto mt-3 space-y-3 scrollbar-hide">
-                        {ordersByStatus[status]?.map((order) => (
-                          <OrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={() => setSelectedOrder(order)}
-                          />
-                        ))}
-                        {(ordersByStatus[status]?.length || 0) === 0 && (
-                          <div className="p-6 text-center text-sm text-muted-foreground/60 border-2 border-dashed border-muted/50 rounded-xl bg-muted/10">
-                            <Package className="h-6 w-6 mx-auto mb-2 opacity-40" />
-                            <span>Sem pedidos</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-              )}
+            {/* Split-view layout: Queue on left, Details on right */}
+            <div className="grid grid-cols-12 gap-4 h-[calc(100vh-320px)] min-h-[500px]">
+              {/* Left: Order Queue */}
+              <div className="col-span-4 xl:col-span-3 min-h-0">
+                <OrderQueue
+                  orders={filteredOrders}
+                  selectedOrderId={selectedOrder?.id || null}
+                  onSelectOrder={setSelectedOrder}
+                  title="Pedidos Ativos"
+                />
+              </div>
+              
+              {/* Right: Order Details Panel */}
+              <div className="col-span-8 xl:col-span-9 min-h-0">
+                <OrderDetailsPanel
+                  order={selectedOrder}
+                  companyName={companyName}
+                  autoPrintKitchen={autoPrintKitchen}
+                  autoPrintMode={autoPrintMode}
+                  autoPrintTrigger={autoPrintTrigger}
+                  availableDrivers={availableDrivers}
+                  updatingStatus={updatingStatus}
+                  assigningDriver={assigningDriver}
+                  onClose={() => setSelectedOrder(null)}
+                  onUpdateStatus={updateOrderStatus}
+                  onAssignDriver={assignDriverToOrder}
+                  onReassignDriver={reassignDriverToOrder}
+                  onBroadcastToDrivers={broadcastOrderToDrivers}
+                  onCancelOrder={(order: any) => {
+                    setOrderToCancel(order);
+                    setShowCancelDialog(true);
+                  }}
+                  onConvertToDelivery={(order: any) => {
+                    setSelectedOrder(order);
+                    setShowConvertToDeliveryDialog(true);
+                  }}
+                />
+              </div>
             </div>
           </TabsContent>
 
